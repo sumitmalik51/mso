@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "value": "LabAdmin"
+    },
+    "adminPassword": {
+      "value": "GEN-PASSWORD"
+    },
+    "azureUserName": {
+      "value": "GET-AZUSER-UPN"
+    },
+    "azurePassword": {
+      "value": "GET-AZUSER-PASSWORD"
+    },
+    "azureTAP": {
+      "value": "GET-AZUSER-TAP"
+    },
+    "azureTAPExpiry": {
+      "value": "GET-AZUSER-TAP-EXPIRY"
+    },
+    "ODLID": {
+      "value": "GET-ODL-ID"
+    },
+    "DeploymentID": {
+      "value": "GET-DEPLOYMENT-ID"
+    },
+    "trainerUserName": {
+      "value": "trainer"
+    },
+    "trainerUserPassword": {
+      "value": "GEN-PASSWORD"
+    },
+    "tenantDomain": {
+      "value": "GET-TENANT-FQDN"
+    },
+    "SERVICEPRINCIPALNAME": {
+      "value": "GET-SERVICEPRINCIPAL-NAME"
+    },
+		"SERVSECRET": {
+      "value": "GET-SERVICEPRINCIPAL-SECRET"
+    },
+		"SERVAPPID": {
+      "value": "GET-SERVICEPRINCIPAL-APPLICATION-ID"
+    },
+    "GETSERVICEPRINCIPALOBJECTID": {
+      "value": "GET-SERVICEPRINCIPAL-OBJECT-ID"
+    },
+		"GETSERVICEPRINCIPALSPOBJECTID": {
+      "value": "GET-SERVICEPRINCIPAL-SPOBJECT-ID"
+    },
+		"AzureUserObjectID": {
+      "value": "GET-AZUSER-OBJECTID"
+    }
+  }
+}

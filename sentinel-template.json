@@ -1,0 +1,126 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "deploymentId": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique deployment ID for resource naming"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "pricingTier": {
+      "type": "string",
+      "defaultValue": "PerGB2018",
+      "allowedValues": [
+        "PerGB2018",
+        "Free",
+        "Standalone",
+        "PerNode",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "Pricing tier for Log Analytics workspace"
+      }
+    },
+    "dataRetention": {
+      "type": "int",
+      "defaultValue": 90,
+      "minValue": 7,
+      "maxValue": 730,
+      "metadata": {
+        "description": "Number of days to retain data in the workspace"
+      }
+    },
+    "dailyQuotaGb": {
+      "type": "int",
+      "defaultValue": -1,
+      "metadata": {
+        "description": "Daily ingestion limit in GB (-1 for unlimited)"
+      }
+    }
+  },
+  "variables": {
+    "workspaceName": "[concat('UniSecOps-sentinel-', parameters('deploymentId'))]",
+    "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "[parameters('pricingTier')]"
+        },
+        "retentionInDays": "[parameters('dataRetention')]",
+        "features": {
+          "enableLogAccessUsingOnlyResourcePermissions": true
+        },
+        "workspaceCapping": {
+          "dailyQuotaGb": "[parameters('dailyQuotaGb')]"
+        },
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.OperationsManagement/solutions",
+      "apiVersion": "2015-11-01-preview",
+      "name": "[concat('SecurityInsights(', variables('workspaceName'), ')')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('workspaceId')]"
+      ],
+      "properties": {
+        "workspaceResourceId": "[variables('workspaceId')]"
+      },
+      "plan": {
+        "name": "[concat('SecurityInsights(', variables('workspaceName'), ')')]",
+        "publisher": "Microsoft",
+        "product": "OMSGallery/SecurityInsights",
+        "promotionCode": ""
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/onboardingStates",
+      "apiVersion": "2022-12-01-preview",
+      "name": "[concat(variables('workspaceName'), '/Microsoft.SecurityInsights/default')]",
+      "dependsOn": [
+        "[variables('workspaceId')]",
+        "[resourceId('Microsoft.OperationsManagement/solutions', concat('SecurityInsights(', variables('workspaceName'), ')'))]"
+      ],
+      "properties": {}
+    }
+  ],
+  "outputs": {
+    "workspaceName": {
+      "type": "string",
+      "value": "[variables('workspaceName')]"
+    },
+    "workspaceId": {
+      "type": "string",
+      "value": "[reference(variables('workspaceId'), '2022-10-01').customerId]"
+    },
+    "workspaceKey": {
+      "type": "string",
+      "value": "[listKeys(variables('workspaceId'), '2022-10-01').primarySharedKey]"
+    },
+    "workspaceResourceId": {
+      "type": "string",
+      "value": "[variables('workspaceId')]"
+    },
+    "sentinelUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource', variables('workspaceId'), '/Overview')]"
+    }
+  }
+}
