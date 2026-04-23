@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecOps Automation Dashboard — Live</title>
+<style>
+  :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #e6edf3; --dim: #8b949e; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: var(--dim); font-size: 0.85rem; margin-bottom: 20px; }
+  .stats-bar { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; min-width: 120px; text-align: center; }
+  .stat .num { font-size: 2rem; font-weight: 700; }
+  .stat .label { color: var(--dim); font-size: 0.75rem; text-transform: uppercase; }
+  .stat.complete .num { color: #3fb950; }
+  .stat.running .num { color: #58a6ff; }
+  .stat.failed .num { color: #f85149; }
+  .stat.pending .num { color: var(--dim); }
+  .grid-container { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+  th, td { padding: 6px 10px; border: 1px solid var(--border); text-align: center; white-space: nowrap; }
+  th { background: #1c2128; color: var(--dim); font-weight: 600; position: sticky; top: 0; z-index: 2; }
+  th:first-child { position: sticky; left: 0; z-index: 3; background: #1c2128; }
+  td:first-child { position: sticky; left: 0; background: var(--card); font-weight: 600; z-index: 1; text-align: left; }
+  tr:hover td { background: #1c2128; }
+  tr:hover td:first-child { background: #21262d; }
+  .s-complete { background: #0d2818 !important; color: #3fb950; }
+  .s-running  { background: #0c2d6b !important; color: #58a6ff; }
+  .s-failed   { background: #3d1014 !important; color: #f85149; }
+  .s-manual   { background: #3d2e00 !important; color: #d29922; }
+  .s-init     { background: #1c2128 !important; color: var(--dim); }
+  .legend { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; font-size: 0.8rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .refresh-info { color: var(--dim); font-size: 0.75rem; margin-top: 8px; }
+  #error-msg { color: #f85149; margin: 10px 0; display: none; }
+  .filter-bar { margin-bottom: 12px; display: flex; gap: 10px; align-items: center; }
+  .filter-bar select, .filter-bar input { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 0.82rem; }
+  .phase-header { background: #21262d !important; color: #58a6ff; font-weight: 600; }
+  .col-deploy th { border-bottom: 2px solid #3fb950; }
+  .col-ui th { border-bottom: 2px solid #58a6ff; }
+  .group-sep { border-left: 2px solid #484f58 !important; }
+</style>
+</head>
+<body>
+
+<h1>🛡️ SecOps Automation Dashboard</h1>
+<p class="subtitle">Real-time status — PowerShell deployment + Playwright UI automation (<span id="table-name">MSO</span>)</p>
+<div id="error-msg"></div>
+
+<div class="stats-bar">
+  <div class="stat complete"><div class="num" id="cnt-complete">-</div><div class="label">Complete</div></div>
+  <div class="stat running"><div class="num" id="cnt-running">-</div><div class="label">Running</div></div>
+  <div class="stat failed"><div class="num" id="cnt-failed">-</div><div class="label">Failed</div></div>
+  <div class="stat pending"><div class="num" id="cnt-total">-</div><div class="label">Total</div></div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#3fb950"></span> Complete</span>
+  <span><span class="dot" style="background:#58a6ff"></span> Running</span>
+  <span><span class="dot" style="background:#f85149"></span> Failed</span>
+  <span><span class="dot" style="background:#d29922"></span> Manual</span>
+  <span><span class="dot" style="background:#484f58"></span> Not started</span>
+</div>
+
+<div class="filter-bar">
+  <label>Filter: <select id="filter-status">
+    <option value="all">All</option>
+    <option value="running">Running</option>
+    <option value="failed">Failed</option>
+    <option value="complete">Complete</option>
+    <option value="manual">Manual</option>
+  </select></label>
+  <label>Search: <input id="filter-search" type="text" placeholder="Instance or user..." /></label>
+  <label>Refresh:
+    <select id="refresh-interval">
+      <option value="5">5s</option>
+      <option value="10" selected>10s</option>
+      <option value="30">30s</option>
+      <option value="60">60s</option>
+    </select>
+  </label>
+</div>
+
+<div class="grid-container">
+  <table id="main-table">
+    <thead><tr id="header-row"><th>Instance</th></tr></thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<p class="refresh-info">Last refreshed: <span id="last-refresh">—</span> | Next in <span id="countdown">—</span>s</p>
+
+<script>
+// ======================== CONFIG ========================
+const ACCOUNT = "copilots47e37hf4wbpe";
+const TABLE   = "MSO";
+const SAS     = "se=2026-12-31T00%3A00%3A00Z&sp=r&sv=2019-02-02&tn=MSO&sig=CCAYldnoceyAxgnkBVvr5stLzSUjbWRzWi5jmBhaE5w%3D";
+const BASE    = `https://${ACCOUNT}.table.core.windows.net/${TABLE}`;
+
+// Known step columns in display order
+const STEP_ORDER = [
+  // ── PowerShell Deployment Pipeline ──
+  "Deploy_00-init", "Deploy_00-download", "Deploy_01-prereqs", "Deploy_01.5-mi",
+  "Deploy_02-auth", "Deploy_03-tap", "Deploy_03.5-userid",
+  "Deploy_04-secadmin", "Deploy_05-mdc",
+  "Deploy_06-sentinel",
+  "Deploy_06b-mdi-connector", "Deploy_06c-entraid", "Deploy_06d-security-events",
+  "Deploy_06e-solutions", "Deploy_06f-defender-solutions", "Deploy_06h-data-connectors",
+  "Deploy_08-mdo-pre",
+  "Deploy_09-mde-features", "Deploy_10-defender-tables", "Deploy_10.5-mde-integration",
+  "Deploy_11-deploy-vms", "Deploy_12-deploy-kali", "Deploy_13-attacks",
+  // ── UI Automation (Playwright) ──
+  "Login_0.1",
+  "Phase-1_1.1", "Phase-1_1.2", "Phase-1_1.3", "Phase-1_---",
+  "Phase-2_2.1", "Phase-2_2.2", "Phase-2_2.3", "Phase-2_2.4", "Phase-2_---",
+  "Phase-3_3a", "Phase-3_3b", "Phase-3_---",
+];
+
+const STEP_LABELS = {
+  // PowerShell Deploy phases
+  "Deploy_00-init":               "Create Params",
+  "Deploy_00-download":           "Download Scripts",
+  "Deploy_01-prereqs":            "Install Az CLI & Modules",
+  "Deploy_01.5-mi":               "Elevate Managed Identity",
+  "Deploy_02-auth":               "Azure Auth (TAP/PW/MI)",
+  "Deploy_03-tap":                "TAP Setup",
+  "Deploy_03.5-userid":           "Lookup User ObjectID",
+  "Deploy_04-secadmin":           "Assign Security Admin Role",
+  "Deploy_05-mdc":                "Enable Defender for Cloud",
+  "Deploy_06-sentinel":           "Sentinel Workspace",
+  "Deploy_06b-mdi-connector":     "Sentinel: MDI Solution",
+  "Deploy_06c-entraid":           "Sentinel: Entra ID Logs",
+  "Deploy_06d-security-events":   "Sentinel: Security Events",
+  "Deploy_06e-solutions":         "Sentinel: Content Hub",
+  "Deploy_06f-defender-solutions": "Sentinel: Defender Solutions",
+  "Deploy_06h-data-connectors":   "Sentinel: Data Connectors",
+  "Deploy_08-mdo-pre":            "Exchange Online (MDO)",
+  "Deploy_09-mde-features":       "MDE Features (manual)",
+  "Deploy_10-defender-tables":    "Defender Tables (manual)",
+  "Deploy_10.5-mde-integration":  "Enable WDATP in MDC",
+  "Deploy_11-deploy-vms":         "Deploy DC + SMB VMs",
+  "Deploy_12-deploy-kali":        "Deploy Kali VM",
+  "Deploy_13-attacks":            "Run Attack Simulations",
+  // UI Automation (Playwright) phases
+  "Login_0.1":    "Portal Login",
+  "Phase-1_1.1":  "MDI: Auto-Activate Servers",
+  "Phase-1_1.2":  "MDI: Windows Auditing",
+  "Phase-1_1.3":  "MDI: Test Mode Thresholds",
+  "Phase-1_---":  "MDI Settings ✓",
+  "Phase-2_2.1":  "MDE: Disable Auto-Resolve",
+  "Phase-2_2.2":  "MDE: Disable Tamper Protect",
+  "Phase-2_2.3":  "MDE: Enable Cloud Apps",
+  "Phase-2_2.4":  "MDE: Enable Preview Features",
+  "Phase-2_---":  "MDE Settings ✓",
+  "Phase-3_3a":   "Sentinel: Connect Workspace",
+  "Phase-3_3b":   "Sentinel: Setup Data Lake",
+  "Phase-3_---":  "Sentinel Onboard ✓",
+};
+
+// ======================== STATE ========================
+let allData = {};  // { instanceId: { rowKey: entity, ... } }
+let refreshTimer = null;
+let countdown = 0;
+
+// ======================== FETCH ========================
+async function fetchAll() {
+  const errEl = document.getElementById("error-msg");
+  try {
+    // Query all entities from the table (OData, max 1000 per page — paginate)
+    let entities = [];
+    let url = `${BASE}?${SAS}&$format=json`;
+    while (url) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      const data = await resp.json();
+      entities.push(...(data.value || []));
+      // Continuation token
+      const nextPK = resp.headers.get("x-ms-continuation-NextPartitionKey");
+      const nextRK = resp.headers.get("x-ms-continuation-NextRowKey");
+      if (nextPK) {
+        url = `${BASE}?${SAS}&$format=json&NextPartitionKey=${encodeURIComponent(nextPK)}`;
+        if (nextRK) url += `&NextRowKey=${encodeURIComponent(nextRK)}`;
+      } else {
+        url = null;
+      }
+    }
+    errEl.style.display = "none";
+    return entities;
+  } catch (e) {
+    errEl.textContent = `Error fetching data: ${e.message}`;
+    errEl.style.display = "block";
+    return null;
+  }
+}
+
+// ======================== PROCESS ========================
+function processEntities(entities) {
+  const grouped = {};
+  const allSteps = new Set();
+  for (const e of entities) {
+    const pk = e.PartitionKey;
+    const rk = e.RowKey;
+    if (!grouped[pk]) grouped[pk] = {};
+    grouped[pk][rk] = e;
+    if (rk !== "_status") allSteps.add(rk);
+  }
+  // Discover any step columns not in STEP_ORDER
+  const extraSteps = [...allSteps].filter(s => !STEP_ORDER.includes(s)).sort();
+  const columns = [...STEP_ORDER.filter(s => allSteps.has(s)), ...extraSteps];
+  return { grouped, columns };
+}
+
+// ======================== RENDER ========================
+function statusClass(status) {
+  if (!status) return "s-init";
+  const s = status.toLowerCase();
+  if (s === "done" || s === "complete" || s === "completed") return "s-complete";
+  if (s === "running" || s === "in progress") return "s-running";
+  if (s === "failed" || s === "error") return "s-failed";
+  if (s === "manual") return "s-manual";
+  return "s-init";
+}
+
+function overallStatus(instanceData) {
+  const st = instanceData["_status"];
+  if (st) {
+    const s = (st.Status || "").toLowerCase();
+    if (s === "complete" || s === "completed" || s === "done") return "complete";
+    if (s === "failed" || s === "error") return "failed";
+    if (s === "running") return "running";
+  }
+  // Infer from step data
+  const steps = Object.keys(instanceData).filter(k => k !== "_status");
+  if (steps.length === 0) return "pending";
+  const statuses = steps.map(k => (instanceData[k].Status || "").toLowerCase());
+  if (statuses.some(s => s === "failed" || s === "error")) return "failed";
+  if (statuses.some(s => s === "running")) return "running";
+  return "running";
+}
+
+function render(grouped, columns) {
+  const filterStatus = document.getElementById("filter-status").value;
+  const filterSearch = document.getElementById("filter-search").value.toLowerCase();
+
+  // Header
+  const headerRow = document.getElementById("header-row");
+  headerRow.innerHTML = "<th>Instance / User</th><th>Status</th>";
+  let prevGroup = null;
+  for (const col of columns) {
+    const th = document.createElement("th");
+    th.textContent = STEP_LABELS[col] || col;
+    th.title = col;
+    const group = col.startsWith("Deploy_") ? "deploy" : "ui";
+    if (prevGroup && prevGroup !== group) th.classList.add("group-sep");
+    prevGroup = group;
+    headerRow.appendChild(th);
+  }
+
+  // Body
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  const instances = Object.keys(grouped).sort();
+  let cntComplete = 0, cntRunning = 0, cntFailed = 0;
+
+  for (const inst of instances) {
+    const data = grouped[inst];
+    const overall = overallStatus(data);
+    if (overall === "complete") cntComplete++;
+    else if (overall === "failed") cntFailed++;
+    else cntRunning++;
+
+    // Filter
+    if (filterStatus !== "all" && overall !== filterStatus) continue;
+    const user = (data["_status"]?.User || "").toLowerCase();
+    if (filterSearch && !inst.toLowerCase().includes(filterSearch) && !user.includes(filterSearch)) continue;
+
+    const tr = document.createElement("tr");
+
+    // Instance cell
+    const tdInst = document.createElement("td");
+    const userStr = data["_status"]?.User ? ` (${data["_status"].User.split("@")[0]})` : "";
+    tdInst.textContent = `${inst}${userStr}`;
+    tr.appendChild(tdInst);
+
+    // Overall status cell
+    const tdStatus = document.createElement("td");
+    tdStatus.textContent = overall.charAt(0).toUpperCase() + overall.slice(1);
+    tdStatus.className = statusClass(overall === "complete" ? "Done" : overall === "failed" ? "Failed" : "Running");
+    tr.appendChild(tdStatus);
+
+    // Step cells
+    let prevCellGroup = null;
+    for (const col of columns) {
+      const td = document.createElement("td");
+      const step = data[col];
+      const cellGroup = col.startsWith("Deploy_") ? "deploy" : "ui";
+      if (prevCellGroup && prevCellGroup !== cellGroup) td.classList.add("group-sep");
+      prevCellGroup = cellGroup;
+      if (step) {
+        td.textContent = step.Status || "—";
+        td.className += " " + statusClass(step.Status);
+        td.title = `${step.Description || ""}\n${step.Timestamp || ""}`;
+      } else {
+        td.textContent = "—";
+        td.className += " s-init";
+      }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  // Stats
+  document.getElementById("cnt-complete").textContent = cntComplete;
+  document.getElementById("cnt-running").textContent = cntRunning;
+  document.getElementById("cnt-failed").textContent = cntFailed;
+  document.getElementById("cnt-total").textContent = instances.length;
+  document.getElementById("last-refresh").textContent = new Date().toLocaleTimeString();
+}
+
+// ======================== REFRESH LOOP ========================
+async function refresh() {
+  const entities = await fetchAll();
+  if (entities) {
+    const { grouped, columns } = processEntities(entities);
+    allData = grouped;
+    render(grouped, columns);
+  }
+}
+
+function startTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  const interval = parseInt(document.getElementById("refresh-interval").value) || 10;
+  countdown = interval;
+  document.getElementById("countdown").textContent = countdown;
+  refreshTimer = setInterval(async () => {
+    countdown--;
+    document.getElementById("countdown").textContent = Math.max(0, countdown);
+    if (countdown <= 0) {
+      countdown = interval;
+      await refresh();
+    }
+  }, 1000);
+}
+
+// ======================== INIT ========================
+document.getElementById("refresh-interval").addEventListener("change", () => { startTimer(); });
+document.getElementById("filter-status").addEventListener("change", () => {
+  const { grouped, columns } = processEntities(Object.values(allData).flatMap(d => Object.values(d)));
+  render(grouped, columns);
+});
+document.getElementById("filter-search").addEventListener("input", () => {
+  const { grouped, columns } = processEntities(Object.values(allData).flatMap(d => Object.values(d)));
+  render(grouped, columns);
+});
+
+(async () => {
+  await refresh();
+  startTimer();
+})();
+</script>
+</body>
+</html>
