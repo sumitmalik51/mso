@@ -302,12 +302,12 @@
     </section>
 
     <section class="cards" aria-label="Summary cards">
-      <div class="card"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
-      <div class="card"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
-      <div class="card highlight-card"><div class="label">Post-9h users</div><div id="extendedCount" class="value">0</div><div id="extendedPct" class="pct-sub">0% of total</div></div>
-      <div class="card"><div class="label">Currently active</div><div id="activeNowCount" class="value">0</div></div>
-      <div class="card"><div class="label">Avg ext. usage</div><div id="avgExtendedMinutes" class="value">0m</div></div>
-      <div class="card"><div class="label">Max ext. usage</div><div id="maxExtendedMinutes" class="value">0m</div><div id="maxExtUser" class="pct-sub"></div></div>
+      <div class="card" title="Total number of tracked user sessions across all VMs"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
+      <div class="card" title="Number of distinct lab VM machines reporting data"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
+      <div class="card highlight-card" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="extendedCount" class="value">0</div><div id="extendedPct" class="pct-sub">0% of total</div></div>
+      <div class="card" title="Users with keyboard/mouse activity detected right now (post-9h, in an open segment)"><div class="label">Currently active</div><div id="activeNowCount" class="value">0</div></div>
+      <div class="card" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="avgExtendedMinutes" class="value">0m</div></div>
+      <div class="card" title="Highest total extended active time recorded by a single session after the 9-hour mark"><div class="label">Max ext. usage</div><div id="maxExtendedMinutes" class="value">0m</div><div id="maxExtUser" class="pct-sub"></div></div>
     </section>
 
     <section class="panel" aria-labelledby="vmHeading">
@@ -327,16 +327,16 @@
         <table>
           <thead>
             <tr>
-              <th>Lab VM name</th>
-              <th>Status</th>
-              <th>User start</th>
-              <th>Last activity</th>
-              <th>Elapsed</th>
-              <th>Ext. usage</th>
-              <th>Segments</th>
-              <th>Idle age</th>
-              <th>User</th>
-              <th>Heartbeat</th>
+              <th title="Name of the lab virtual machine">Lab VM name</th>
+              <th title="Current session state: Pre-9h, Active (post-9h), Idle (post-9h), Extended, or Hard stop">Status</th>
+              <th title="When the user's first real keyboard/mouse input was detected (session start time)">User start</th>
+              <th title="Timestamp of the most recent keyboard or mouse input detected on the VM">Last activity</th>
+              <th title="Total wall-clock time since the session started (now minus user start time)">Elapsed</th>
+              <th title="Total active time after the 9-hour mark, summed across all segments. A segment is a continuous period of keyboard/mouse activity; idle gaps longer than the buffer close a segment.">Ext. usage</th>
+              <th title="Number of distinct active periods (segments) after the 9-hour mark. Each time the user goes idle longer than the idle buffer and then resumes, a new segment is counted.">Segments</th>
+              <th title="How long ago the last keyboard/mouse input was detected (now minus last activity time)">Idle age</th>
+              <th title="Windows username of the logged-in user on the VM">User</th>
+              <th title="Time since the tracker script last wrote a heartbeat update to Azure Table Storage">Heartbeat</th>
             </tr>
           </thead>
           <tbody id="sessionsBody">
