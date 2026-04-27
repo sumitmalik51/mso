@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab VM Activity Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e0ec;
+      --accent: #2563eb;
+      --accent-2: #0f766e;
+      --danger: #b42318;
+      --warn: #b54708;
+      --ok: #027a48;
+      --shadow: 0 16px 45px rgba(15, 23, 42, 0.09);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #e0ecff 0, transparent 36rem), var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      padding: 2rem clamp(1rem, 4vw, 3rem) 1rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin-top: 0.5rem;
+      color: var(--muted);
+      max-width: 70rem;
+      line-height: 1.6;
+    }
+
+    main {
+      padding: 0 clamp(1rem, 4vw, 3rem) 3rem;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.93);
+      border: 1px solid rgba(217, 224, 236, 0.9);
+      border-radius: 1.25rem;
+      box-shadow: var(--shadow);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .config-grid,
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+      gap: 1rem;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 0.75rem 1.1rem;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary { background: #e7eefc; color: #174ea6; }
+    button:disabled { opacity: 0.55; cursor: wait; }
+
+    .status-line {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 1rem;
+    }
+
+    .card .label {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card .value {
+      margin-top: 0.45rem;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .vm-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .vm-pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.45rem 0.7rem;
+      background: #fff;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 78rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.85rem 0.75rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #475467;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td.small { color: var(--muted); font-size: 0.9rem; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.35rem 0.62rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .badge.ok { background: #ecfdf3; color: var(--ok); }
+    .badge.warn { background: #fffaeb; color: var(--warn); }
+    .badge.danger { background: #fef3f2; color: var(--danger); }
+    .badge.neutral { background: #eef2ff; color: #3730a3; }
+
+    .error {
+      display: none;
+      background: #fef3f2;
+      border: 1px solid #fecdca;
+      color: var(--danger);
+      border-radius: 0.9rem;
+      padding: 0.8rem 1rem;
+      margin-top: 1rem;
+      white-space: pre-wrap;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 1.5rem;
+      text-align: center;
+    }
+  </style>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Lab VM Activity Dashboard</h1>
+    <p class="subtitle">
+      Shows sparse real-user session state written by each lab VM. For this test build, the dashboard can use the Storage Account access key to generate a read-only Table SAS in the browser.
+    </p>
+    <div style="margin-top:0.75rem"><a href="graphs.html" style="color:#2563eb;font-weight:700;text-decoration:none">View Analytics &amp; Graphs &rarr;</a></div>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="configHeading">
+      <h2 id="configHeading">Storage connection</h2>
+      <div class="config-grid">
+        <div>
+          <label for="storageAccountName">Storage account</label>
+          <input id="storageAccountName" autocomplete="off" placeholder="mystorageaccount" />
+        </div>
+        <div>
+          <label for="tableName">Table name</label>
+          <input id="tableName" autocomplete="off" placeholder="LabSessions" />
+        </div>
+        <div>
+          <label for="sasToken">Read-only table SAS</label>
+          <input id="sasToken" autocomplete="off" placeholder="?sv=...&sp=r..." type="password" />
+        </div>
+        <div>
+          <label for="accountKey">Storage account key (test only)</label>
+          <input id="accountKey" autocomplete="off" placeholder="base64 account key" type="password" />
+        </div>
+        <div>
+          <label for="vmFilter">Optional VM filter</label>
+          <input id="vmFilter" autocomplete="off" placeholder="labvm-001" />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="refreshButton">Refresh</button>
+        <button id="saveButton" class="secondary">Save in this browser</button>
+        <button id="clearButton" class="secondary">Clear saved config</button>
+        <span id="statusLine" class="status-line">Not loaded.</span>
+      </div>
+      <div id="errorBox" class="error" role="alert"></div>
+    </section>
+
+    <section class="cards" aria-label="Summary cards">
+      <div class="card"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
+      <div class="card"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
+      <div class="card"><div class="label">Post-8h users</div><div id="extendedCount" class="value">0</div></div>
+      <div class="card"><div class="label">Currently active</div><div id="activeNowCount" class="value">0</div></div>
+      <div class="card"><div class="label">Avg ext. usage</div><div id="avgExtendedMinutes" class="value">0m</div></div>
+    </section>
+
+    <section class="panel" aria-labelledby="vmHeading">
+      <div class="toolbar">
+        <h2 id="vmHeading">Lab VM names</h2>
+        <span class="status-line">Distinct VM names from the table</span>
+      </div>
+      <div id="vmStrip" class="vm-strip"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="sessionsHeading">
+      <div class="toolbar">
+        <h2 id="sessionsHeading">Sessions</h2>
+        <span id="lastUpdated" class="status-line"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Lab VM name</th>
+              <th>Status</th>
+              <th>User start</th>
+              <th>Last activity</th>
+              <th>Elapsed</th>
+              <th>Ext. usage</th>
+              <th>Segments</th>
+              <th>Idle age</th>
+              <th>User</th>
+              <th>Heartbeat</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsBody">
+            <tr><td colspan="10" class="empty">No data loaded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const localStorageKey = "LabDashboardConfig";
+    const defaultConfig = Object.assign({
+      storageAccountName: "copilots47e37hf4wbpe",
+      tableName: "LabSessions",
+      sasToken: "",
+      accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
+      dashboardSasHours: 24,
+      refreshSeconds: 5
+    }, window.LabDashboardConfig || {});
+
+    const elements = {
+      storageAccountName: document.getElementById("storageAccountName"),
+      tableName: document.getElementById("tableName"),
+      sasToken: document.getElementById("sasToken"),
+      accountKey: document.getElementById("accountKey"),
+      vmFilter: document.getElementById("vmFilter"),
+      refreshButton: document.getElementById("refreshButton"),
+      saveButton: document.getElementById("saveButton"),
+      clearButton: document.getElementById("clearButton"),
+      statusLine: document.getElementById("statusLine"),
+      errorBox: document.getElementById("errorBox"),
+      sessionsCount: document.getElementById("sessionsCount"),
+      vmCount: document.getElementById("vmCount"),
+      extendedCount: document.getElementById("extendedCount"),
+      activeNowCount: document.getElementById("activeNowCount"),
+      avgExtendedMinutes: document.getElementById("avgExtendedMinutes"),
+      vmStrip: document.getElementById("vmStrip"),
+      lastUpdated: document.getElementById("lastUpdated"),
+      sessionsBody: document.getElementById("sessionsBody")
+    };
+
+    let refreshTimer = null;
+
+    function normalizeSas(sasToken) {
+      return (sasToken || "").trim().replace(/^\?/, "");
+    }
+
+    function loadConfig() {
+      const saved = localStorage.getItem(localStorageKey);
+      const config = saved ? Object.assign({}, defaultConfig, JSON.parse(saved)) : defaultConfig;
+      elements.storageAccountName.value = config.storageAccountName || "";
+      elements.tableName.value = config.tableName || "LabSessions";
+      elements.sasToken.value = config.sasToken || "";
+      elements.accountKey.value = config.accountKey || "";
+      elements.vmFilter.value = config.vmFilter || "";
+    }
+
+    function readConfig() {
+      return {
+        storageAccountName: elements.storageAccountName.value.trim(),
+        tableName: elements.tableName.value.trim() || "LabSessions",
+        sasToken: elements.sasToken.value.trim(),
+        accountKey: elements.accountKey.value.trim(),
+        vmFilter: elements.vmFilter.value.trim(),
+        dashboardSasHours: Number(defaultConfig.dashboardSasHours || 24),
+        refreshSeconds: Number(defaultConfig.refreshSeconds || 60)
+      };
+    }
+
+    function saveConfig() {
+      localStorage.setItem(localStorageKey, JSON.stringify(readConfig()));
+      setStatus("Saved dashboard settings in this browser.");
+    }
+
+    function clearConfig() {
+      localStorage.removeItem(localStorageKey);
+      loadConfig();
+      setStatus("Cleared saved dashboard settings.");
+    }
+
+    function setStatus(message) {
+      elements.statusLine.textContent = message;
+    }
+
+    function showError(error) {
+      elements.errorBox.style.display = error ? "block" : "none";
+      elements.errorBox.textContent = error || "";
+    }
+
+    function base64ToBytes(base64) {
+      const raw = window.atob(base64.trim());
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+      return bytes;
+    }
+
+    function formatSasTime(date) {
+      return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+    }
+
+    async function signAccountSas(stringToSign, accountKey) {
+      if (!window.crypto || !window.crypto.subtle) {
+        throw new Error("Browser Web Crypto is required for access-key mode. Open this dashboard over HTTPS or localhost.");
+      }
+
+      const cryptoKey = await window.crypto.subtle.importKey(
+        "raw",
+        base64ToBytes(accountKey),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+      const signature = await window.crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(stringToSign));
+      return window.btoa(String.fromCharCode(...new Uint8Array(signature)));
+    }
+
+    async function createReadOnlyTableAccountSas(config) {
+      const version = "2020-10-02";
+      const permissions = "r";
+      const services = "t";
+      const resourceTypes = "sco";
+      const start = formatSasTime(new Date(Date.now() - 5 * 60 * 1000));
+      const expiry = formatSasTime(new Date(Date.now() + Math.max(1, config.dashboardSasHours || 24) * 60 * 60 * 1000));
+      const protocol = "https";
+      const stringToSign = [
+        config.storageAccountName,
+        permissions,
+        services,
+        resourceTypes,
+        start,
+        expiry,
+        "",
+        protocol,
+        version,
+        ""
+      ].join("\n");
+
+      const signature = await signAccountSas(stringToSign, config.accountKey);
+      const sas = new URLSearchParams({
+        sv: version,
+        ss: services,
+        srt: resourceTypes,
+        sp: permissions,
+        st: start,
+        se: expiry,
+        spr: protocol,
+        sig: signature
+      });
+      return sas.toString();
+    }
+
+    async function getAuthSas(config) {
+      if (config.sasToken) return normalizeSas(config.sasToken);
+      if (config.accountKey) return createReadOnlyTableAccountSas(config);
+      throw new Error("Storage account, table name, and either a read-only SAS token or Storage Account key are required.");
+    }
+
+    function buildTableUrl(config, continuation, authSas) {
+      const url = new URL(`https://${config.storageAccountName}.table.core.windows.net/${encodeURIComponent(config.tableName)}()`);
+      const sas = new URLSearchParams(authSas);
+      for (const [key, value] of sas.entries()) {
+        url.searchParams.set(key, value);
+      }
+      url.searchParams.set("$select", "PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,UpdatedUtc,ExtendedActiveMinutes,ExtendedSegmentCount,ExtendedSegmentsJson,IsCurrentlyActive,CurrentSegmentStartUtc,LastHeartbeatUtc,Status");
+      if (config.vmFilter) {
+        const vm = config.vmFilter.replace(/'/g, "''");
+        url.searchParams.set("$filter", `PartitionKey eq '${vm}' or VMName eq '${vm}'`);
+      }
+      if (continuation && continuation.nextPartitionKey) {
+        url.searchParams.set("NextPartitionKey", continuation.nextPartitionKey);
+      }
+      if (continuation && continuation.nextRowKey) {
+        url.searchParams.set("NextRowKey", continuation.nextRowKey);
+      }
+      return url;
+    }
+
+    async function fetchRows(config) {
+      if (!config.storageAccountName || !config.tableName) {
+        throw new Error("Storage account and table name are required.");
+      }
+
+      const authSas = await getAuthSas(config);
+      const rows = [];
+      let continuation = null;
+      do {
+        const response = await fetch(buildTableUrl(config, continuation, authSas).toString(), {
+          headers: { "Accept": "application/json;odata=nometadata" }
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Azure Table query failed: ${response.status} ${response.statusText}\n${text}`);
+        }
+
+        const body = await response.json();
+        rows.push(...(body.value || []));
+        continuation = {
+          nextPartitionKey: response.headers.get("x-ms-continuation-NextPartitionKey"),
+          nextRowKey: response.headers.get("x-ms-continuation-NextRowKey")
+        };
+      } while (continuation.nextPartitionKey || continuation.nextRowKey);
+
+      return rows;
+    }
+
+    function parseDate(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatDate(value) {
+      const date = parseDate(value);
+      return date ? date.toLocaleString() : "-";
+    }
+
+    function formatDuration(milliseconds) {
+      if (!Number.isFinite(milliseconds) || milliseconds < 0) return "-";
+      const totalMinutes = Math.floor(milliseconds / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    function statusFor(row) {
+      if (row.Status === "HardStopped" || row.ShutdownReason === "HardLimitReached") {
+        return { text: "Hard stop", className: "danger" };
+      }
+      if (row.Status === "ExtendedActive" || row.IsCurrentlyActive === true) {
+        return { text: "Active (post-8h)", className: "warn" };
+      }
+      if (row.Status === "ExtendedIdle") {
+        return { text: "Idle (post-8h)", className: "neutral" };
+      }
+      if (row.Status === "ExtendedMonitoring" || row.ExtendedStarted === true) {
+        return { text: "Extended", className: "warn" };
+      }
+      if (row.StoppedDueToIdle === true || row.ShutdownReason === "IdleAfterExtendedPeriod") {
+        return { text: "Idle stopped", className: "danger" };
+      }
+      return { text: row.Status || "Pre-8h", className: "ok" };
+    }
+
+    function render(rows) {
+      const now = Date.now();
+      rows.sort((a, b) => (parseDate(b.LastActivityTime)?.getTime() || 0) - (parseDate(a.LastActivityTime)?.getTime() || 0));
+
+      const vmNames = [...new Set(rows.map(row => row.VMName || row.PartitionKey).filter(Boolean))].sort();
+      const extendedRows = rows.filter(row => row.ExtendedStarted === true);
+      const activeNow = rows.filter(row => row.IsCurrentlyActive === true);
+      const extMinutes = extendedRows.map(r => Number(r.ExtendedActiveMinutes) || 0);
+      const avgExt = extMinutes.length ? (extMinutes.reduce((a, b) => a + b, 0) / extMinutes.length) : 0;
+
+      elements.sessionsCount.textContent = rows.length.toString();
+      elements.vmCount.textContent = vmNames.length.toString();
+      elements.extendedCount.textContent = extendedRows.length.toString();
+      elements.activeNowCount.textContent = activeNow.length.toString();
+      elements.avgExtendedMinutes.textContent = formatDuration(avgExt * 60000);
+
+      elements.vmStrip.innerHTML = vmNames.length
+        ? vmNames.map(vm => `<span class="vm-pill">${escapeHtml(vm)}</span>`).join("")
+        : `<span class="status-line">No VM names found.</span>`;
+
+      if (!rows.length) {
+        elements.sessionsBody.innerHTML = `<tr><td colspan="10" class="empty">No rows found.</td></tr>`;
+        return;
+      }
+
+      elements.sessionsBody.innerHTML = rows.map(row => {
+        const status = statusFor(row);
+        const userStart = parseDate(row.UserStartTime);
+        const lastActivity = parseDate(row.LastActivityTime);
+        const elapsed = userStart ? formatDuration(now - userStart.getTime()) : "-";
+        const idleAge = lastActivity ? formatDuration(now - lastActivity.getTime()) : "-";
+        const extUsage = Number(row.ExtendedActiveMinutes) || 0;
+        const segCount = Number(row.ExtendedSegmentCount) || 0;
+        const heartbeat = parseDate(row.LastHeartbeatUtc);
+        const hbAge = heartbeat ? formatDuration(now - heartbeat.getTime()) + " ago" : "-";
+        return `
+          <tr>
+            <td><strong>${escapeHtml(row.VMName || row.PartitionKey || "-")}</strong></td>
+            <td><span class="badge ${status.className}">${status.text}</span></td>
+            <td>${formatDate(row.UserStartTime)}</td>
+            <td>${formatDate(row.LastActivityTime)}</td>
+            <td>${elapsed}</td>
+            <td>${extUsage > 0 ? formatDuration(extUsage * 60000) : "-"}</td>
+            <td>${segCount > 0 ? segCount : "-"}</td>
+            <td>${idleAge}</td>
+            <td>${escapeHtml(row.UserName || "-")}</td>
+            <td class="small">${hbAge}</td>
+          </tr>`;
+      }).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        "\"": "&quot;"
+      }[char]));
+    }
+
+    async function refresh() {
+      const config = readConfig();
+      showError("");
+      elements.refreshButton.disabled = true;
+      setStatus(config.sasToken ? "Loading Azure Table rows with SAS..." : "Loading Azure Table rows with access-key generated SAS...");
+      try {
+        const rows = await fetchRows(config);
+        render(rows);
+        const loadedAt = new Date();
+        elements.lastUpdated.textContent = `Last refreshed ${loadedAt.toLocaleString()}`;
+        setStatus(`Loaded ${rows.length} session row(s).`);
+      } catch (error) {
+        showError(error.message || String(error));
+        setStatus("Load failed. Check account key/SAS permissions and Table CORS settings.");
+      } finally {
+        elements.refreshButton.disabled = false;
+        scheduleRefresh();
+      }
+    }
+
+    function scheduleRefresh() {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      const seconds = Math.max(5, Number(readConfig().refreshSeconds || defaultConfig.refreshSeconds || 5));
+      refreshTimer = window.setTimeout(refresh, seconds * 1000);
+    }
+
+    elements.refreshButton.addEventListener("click", refresh);
+    elements.saveButton.addEventListener("click", saveConfig);
+    elements.clearButton.addEventListener("click", clearConfig);
+
+    loadConfig();
+    if (readConfig().storageAccountName && (readConfig().sasToken || readConfig().accountKey)) {
+      refresh();
+    }
+  </script>
+</body>
+</html>
