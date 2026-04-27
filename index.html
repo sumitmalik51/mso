@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FAIAD Lab VM Activity Dashboard</title>
+  <title>FAIAD Activity Dashboard</title>
   <style>
     :root {
       color-scheme: light;
@@ -63,6 +63,13 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
       gap: 1rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
 
     label {
@@ -260,50 +267,22 @@
 </head>
 <body>
   <header>
-    <h1>Lab VM Activity Dashboard</h1>
+    <h1>FAIAD Activity Dashboard</h1>
     <p class="subtitle">
-      Shows sparse real-user session state written by each lab VM. For this test build, the dashboard can use the Storage Account access key to generate a read-only Table SAS in the browser.
+      Real-time user activity tracking for FAIAD lab VMs. Monitors keyboard and mouse input to record post-9h extended usage.
     </p>
-    <div style="margin-top:0.75rem"><a href="graphs.html" style="color:#2563eb;font-weight:700;text-decoration:none">View Analytics &amp; Graphs &rarr;</a></div>
+    <div style="margin-top:0.75rem"><a href="graphs.html" style="color:#2563eb;font-weight:700;text-decoration:none">View FAIAD Analytics &amp; Graphs &rarr;</a></div>
   </header>
 
   <main>
-    <section class="panel" aria-labelledby="configHeading">
-      <h2 id="configHeading">Storage connection</h2>
-      <div class="config-grid">
-        <div>
-          <label for="storageAccountName">Storage account</label>
-          <input id="storageAccountName" autocomplete="off" placeholder="mystorageaccount" />
-        </div>
-        <div>
-          <label for="tableName">Table name</label>
-          <input id="tableName" autocomplete="off" placeholder="LabSessions" />
-        </div>
-        <div>
-          <label for="sasToken">Read-only table SAS</label>
-          <input id="sasToken" autocomplete="off" placeholder="?sv=...&sp=r..." type="password" />
-        </div>
-        <div>
-          <label for="accountKey">Storage account key (test only)</label>
-          <input id="accountKey" autocomplete="off" placeholder="base64 account key" type="password" />
-        </div>
-        <div>
-          <label for="vmFilter">Optional VM filter</label>
-          <input id="vmFilter" autocomplete="off" placeholder="labvm-001" />
-        </div>
-      </div>
-      <div class="actions">
-        <button id="refreshButton">Refresh</button>
-        <button id="saveButton" class="secondary">Save in this browser</button>
-        <button id="clearButton" class="secondary">Clear saved config</button>
-        <span id="statusLine" class="status-line">Not loaded.</span>
-      </div>
+    <section class="panel status-bar" aria-label="Status">
+      <span id="statusLine" class="status-line">Loading...</span>
       <div id="errorBox" class="error" role="alert"></div>
     </section>
 
     <section class="cards" aria-label="Summary cards">
-      <div class="card" title="Total number of tracked user sessions across all VMs"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
-      <div class="card" title="Number of distinct lab VM machines reporting data"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
+      <div class="card" title="Total number of tracked FAIAD user sessions across all VMs"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
+      <div class="card" title="Number of distinct FAIAD VM machines reporting data"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
       <div class="card highlight-card" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="extendedCount" class="value">0</div><div id="extendedPct" class="pct-sub">0% of total</div></div>
       <div class="card" title="Users with keyboard/mouse activity detected right now (post-9h, in an open segment)"><div class="label">Currently active</div><div id="activeNowCount" class="value">0</div></div>
       <div class="card" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="avgExtendedMinutes" class="value">0m</div></div>
@@ -312,8 +291,8 @@
 
     <section class="panel" aria-labelledby="vmHeading">
       <div class="toolbar">
-        <h2 id="vmHeading">Lab VM names</h2>
-        <span class="status-line">Distinct VM names from the table</span>
+        <h2 id="vmHeading">FAIAD VM names</h2>
+        <span class="status-line">Distinct VM names from FAIAD</span>
       </div>
       <div id="vmStrip" class="vm-strip"></div>
     </section>
@@ -327,7 +306,7 @@
         <table>
           <thead>
             <tr>
-              <th title="Name of the lab virtual machine">Lab VM name</th>
+              <th title="Name of the FAIAD virtual machine">FAIAD VM</th>
               <th title="Current session state: Pre-9h, Active (post-9h), Idle (post-9h), Extended, or Hard stop">Status</th>
               <th title="When the user's first real keyboard/mouse input was detected (session start time)">User start</th>
               <th title="Timestamp of the most recent keyboard or mouse input detected on the VM">Last activity</th>
@@ -349,24 +328,15 @@
 
   <script>
     const localStorageKey = "LabDashboardConfig";
-    const defaultConfig = Object.assign({
+    const STORAGE_CONFIG = {
       storageAccountName: "copilots47e37hf4wbpe",
       tableName: "LabSessions",
-      sasToken: "",
       accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
       dashboardSasHours: 24,
       refreshSeconds: 5
-    }, window.LabDashboardConfig || {});
+    };
 
     const elements = {
-      storageAccountName: document.getElementById("storageAccountName"),
-      tableName: document.getElementById("tableName"),
-      sasToken: document.getElementById("sasToken"),
-      accountKey: document.getElementById("accountKey"),
-      vmFilter: document.getElementById("vmFilter"),
-      refreshButton: document.getElementById("refreshButton"),
-      saveButton: document.getElementById("saveButton"),
-      clearButton: document.getElementById("clearButton"),
       statusLine: document.getElementById("statusLine"),
       errorBox: document.getElementById("errorBox"),
       sessionsCount: document.getElementById("sessionsCount"),
@@ -381,42 +351,7 @@
 
     let refreshTimer = null;
 
-    function normalizeSas(sasToken) {
-      return (sasToken || "").trim().replace(/^\?/, "");
-    }
-
-    function loadConfig() {
-      const saved = localStorage.getItem(localStorageKey);
-      const config = saved ? Object.assign({}, defaultConfig, JSON.parse(saved)) : defaultConfig;
-      elements.storageAccountName.value = config.storageAccountName || "";
-      elements.tableName.value = config.tableName || "LabSessions";
-      elements.sasToken.value = config.sasToken || "";
-      elements.accountKey.value = config.accountKey || "";
-      elements.vmFilter.value = config.vmFilter || "";
-    }
-
-    function readConfig() {
-      return {
-        storageAccountName: elements.storageAccountName.value.trim(),
-        tableName: elements.tableName.value.trim() || "LabSessions",
-        sasToken: elements.sasToken.value.trim(),
-        accountKey: elements.accountKey.value.trim(),
-        vmFilter: elements.vmFilter.value.trim(),
-        dashboardSasHours: Number(defaultConfig.dashboardSasHours || 24),
-        refreshSeconds: Number(defaultConfig.refreshSeconds || 60)
-      };
-    }
-
-    function saveConfig() {
-      localStorage.setItem(localStorageKey, JSON.stringify(readConfig()));
-      setStatus("Saved dashboard settings in this browser.");
-    }
-
-    function clearConfig() {
-      localStorage.removeItem(localStorageKey);
-      loadConfig();
-      setStatus("Cleared saved dashboard settings.");
-    }
+    function readConfig() { return STORAGE_CONFIG; }
 
     function setStatus(message) {
       elements.statusLine.textContent = message;
@@ -490,9 +425,8 @@
     }
 
     async function getAuthSas(config) {
-      if (config.sasToken) return normalizeSas(config.sasToken);
       if (config.accountKey) return createReadOnlyTableAccountSas(config);
-      throw new Error("Storage account, table name, and either a read-only SAS token or Storage Account key are required.");
+      throw new Error("Storage account key is required.");
     }
 
     function buildTableUrl(config, continuation, authSas) {
@@ -502,10 +436,6 @@
         url.searchParams.set(key, value);
       }
       url.searchParams.set("$select", "PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,UpdatedUtc,ExtendedActiveMinutes,ExtendedSegmentCount,ExtendedSegmentsJson,IsCurrentlyActive,CurrentSegmentStartUtc,LastHeartbeatUtc,Status");
-      if (config.vmFilter) {
-        const vm = config.vmFilter.replace(/'/g, "''");
-        url.searchParams.set("$filter", `PartitionKey eq '${vm}' or VMName eq '${vm}'`);
-      }
       if (continuation && continuation.nextPartitionKey) {
         url.searchParams.set("NextPartitionKey", continuation.nextPartitionKey);
       }
@@ -654,37 +584,28 @@
     async function refresh() {
       const config = readConfig();
       showError("");
-      elements.refreshButton.disabled = true;
-      setStatus(config.sasToken ? "Loading Azure Table rows with SAS..." : "Loading Azure Table rows with access-key generated SAS...");
+      setStatus("Loading...");
       try {
         const rows = await fetchRows(config);
         render(rows);
         const loadedAt = new Date();
         elements.lastUpdated.textContent = `Last refreshed ${loadedAt.toLocaleString()}`;
-        setStatus(`Loaded ${rows.length} session row(s).`);
+        setStatus(`Loaded ${rows.length} session row(s) at ${loadedAt.toLocaleTimeString()}.`);
       } catch (error) {
         showError(error.message || String(error));
-        setStatus("Load failed. Check account key/SAS permissions and Table CORS settings.");
+        setStatus("Load failed.");
       } finally {
-        elements.refreshButton.disabled = false;
         scheduleRefresh();
       }
     }
 
     function scheduleRefresh() {
       if (refreshTimer) window.clearTimeout(refreshTimer);
-      const seconds = Math.max(5, Number(readConfig().refreshSeconds || defaultConfig.refreshSeconds || 5));
+      const seconds = Math.max(5, Number(STORAGE_CONFIG.refreshSeconds || 5));
       refreshTimer = window.setTimeout(refresh, seconds * 1000);
     }
 
-    elements.refreshButton.addEventListener("click", refresh);
-    elements.saveButton.addEventListener("click", saveConfig);
-    elements.clearButton.addEventListener("click", clearConfig);
-
-    loadConfig();
-    if (readConfig().storageAccountName && (readConfig().sasToken || readConfig().accountKey)) {
-      refresh();
-    }
+    refresh();
   </script>
 </body>
 </html>
