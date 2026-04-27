@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FAIAD Lab VM Analytics Dashboard</title>
+  <title> FAIAD Lab VM Analytics Dashboard</title>
   <style>
     :root {
       --bg: #f5f7fb; --panel: #ffffff; --ink: #172033; --muted: #667085;
@@ -78,24 +78,24 @@
 
   <!-- KPI cards -->
   <section class="kpi-grid">
-    <div class="kpi"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
-    <div class="kpi"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">lab machines</div></div>
-    <div class="kpi kpi-highlight"><div class="label">Post-9h users</div><div id="kpiPost8h" class="value">0</div><div id="kpiPost8hPct" class="sub">0% of total</div></div>
-    <div class="kpi kpi-highlight-active"><div class="label">Post-9h &amp; Active now</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
-    <div class="kpi"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-9h active time</div></div>
-    <div class="kpi"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="sub">single session</div></div>
-    <div class="kpi"><div class="label">Pre-9h only</div><div id="kpiPre8h" class="value">0</div><div class="sub">within limit</div></div>
-    <div class="kpi"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div><div class="sub">hit hard limit</div></div>
+    <div class="kpi" title="Total number of tracked user sessions across all VMs"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
+    <div class="kpi" title="Number of distinct lab VM machines reporting data"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">lab machines</div></div>
+    <div class="kpi kpi-highlight" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="kpiPost8h" class="value">0</div><div id="kpiPost8hPct" class="sub">0% of total</div></div>
+    <div class="kpi kpi-highlight-active" title="Post-9h users with keyboard/mouse activity detected right now (in an open segment)"><div class="label">Post-9h &amp; Active now</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
+    <div class="kpi" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-9h active time</div></div>
+    <div class="kpi" title="Highest total extended active time recorded by a single session after the 9-hour mark"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="sub">single session</div></div>
+    <div class="kpi" title="Users who stayed within the 9-hour limit and never entered extended monitoring"><div class="label">Pre-9h only</div><div id="kpiPre8h" class="value">0</div><div class="sub">within limit</div></div>
+    <div class="kpi" title="Sessions that were forcibly shut down after reaching the hard stop limit (12 hours by default)"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div><div class="sub">hit hard limit</div></div>
   </section>
 
   <!-- Charts -->
   <section class="chart-grid">
-    <div class="panel chart-box"><h3>Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
-    <div class="panel chart-box"><h3>User status breakdown</h3><canvas id="chartStatus"></canvas></div>
-    <div class="panel chart-box"><h3>Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
-    <div class="panel chart-box"><h3>Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
-    <div class="panel chart-box"><h3>Extended usage per VM</h3><canvas id="chartPerVM"></canvas></div>
-    <div class="panel chart-box"><h3>Post-9h usage timeline</h3><canvas id="chartTimeline"></canvas></div>
+    <div class="panel chart-box"><h3 title="Ratio of users who exceeded the 9-hour limit vs those who stayed within it">Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
+    <div class="panel chart-box"><h3 title="Breakdown of all sessions by their current state: Pre-9h, Post-9h Active, Post-9h Idle, or Hard Stopped">User status breakdown</h3><canvas id="chartStatus"></canvas></div>
+    <div class="panel chart-box"><h3 title="How much active time post-9h users spent after the threshold, grouped into time buckets">Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
+    <div class="panel chart-box"><h3 title="How many distinct active periods (segments) each post-9h user had. A segment is a burst of keyboard/mouse activity; going idle longer than the buffer closes a segment.">Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
+    <div class="panel chart-box"><h3 title="Total extended active minutes aggregated per VM, showing which machines had the most post-9h usage">Extended usage per VM</h3><canvas id="chartPerVM"></canvas></div>
+    <div class="panel chart-box"><h3 title="Each post-9h user's total extended active time as a horizontal bar, color-coded: green (<1h), amber (1-2h), red (>2h)">Post-9h usage timeline</h3><canvas id="chartTimeline"></canvas></div>
   </section>
 
   <!-- Top Extended Users Table -->
@@ -103,7 +103,7 @@
     <h3>Top post-9h users by extended usage</h3>
     <div style="overflow-x:auto">
       <table id="topUsersTable" class="top-table">
-        <thead><tr><th>#</th><th>VM</th><th>User</th><th>Ext. usage</th><th>Segments</th><th>Status</th><th>Started</th></tr></thead>
+        <thead><tr><th title="Rank by extended usage">#</th><th title="Name of the lab virtual machine">VM</th><th title="Windows username of the logged-in user">User</th><th title="Total active time after the 9-hour mark, summed across all segments">Ext. usage</th><th title="Number of distinct active periods after 9h. Each time the user goes idle longer than the idle buffer (default 10 min) and resumes, a new segment is counted.">Segments</th><th title="Current state: Active (still using), Idle (no recent input), or Hard stopped (hit 12h limit)">Status</th><th title="When the user's session started (first real keyboard/mouse input)">Started</th></tr></thead>
         <tbody id="topUsersBody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No data.</td></tr></tbody>
       </table>
     </div>
