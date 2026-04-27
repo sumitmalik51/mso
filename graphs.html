@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title> FAIAD Lab VM Analytics Dashboard</title>
+  <title>FAIAD Analytics Dashboard</title>
   <style>
     :root {
       --bg: #f5f7fb; --panel: #ffffff; --ink: #172033; --muted: #667085;
@@ -44,12 +44,7 @@
     .status-badge.active { background:#fef3c7; color:#92400e; }
     .status-badge.idle { background:#eef2ff; color:#3730a3; }
     .status-badge.stopped { background:#fef3f2; color:#b42318; }
-    .config-row { display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
-    .config-row label { font-size:0.82rem; font-weight:600; color:var(--muted); margin:0; }
-    .config-row input { width:14rem; border:1px solid var(--line); border-radius:0.75rem; padding:0.55rem 0.75rem; color:var(--ink); background:#fff; outline:none; }
-    .config-row input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.15); }
-    button { border:0; border-radius:999px; padding:0.65rem 1rem; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; font-size:0.85rem; }
-    button.secondary { background:#e7eefc; color:#174ea6; }
+    .status-bar { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
     .status-line { color:var(--muted); font-size:0.85rem; }
     .error { display:none; background:#fef3f2; border:1px solid #fecdca; color:var(--danger); border-radius:0.9rem; padding:0.8rem 1rem; margin-top:0.75rem; white-space:pre-wrap; }
   </style>
@@ -58,28 +53,21 @@
 </head>
 <body>
 <header>
-  <h1>Lab VM Analytics</h1>
-  <p class="subtitle">Graphs and KPIs showing total users, post-9h extended usage, segment breakdown across all lab VMs.</p>
-  <div class="nav"><a href="index.html">&larr; Session table dashboard</a></div>
+  <h1>FAIAD Analytics</h1>
+  <p class="subtitle">Graphs and KPIs showing total FAIAD users, post-9h extended usage, and segment breakdown across all FAIAD VMs.</p>
+  <div class="nav"><a href="index.html">&larr; FAIAD Session Dashboard</a></div>
 </header>
 
 <main>
-  <section class="panel">
-    <div class="config-row">
-      <label>Account</label><input id="storageAccountName" placeholder="mystorageaccount" />
-      <label>Table</label><input id="tableName" placeholder="LabSessions" />
-      <label>Key</label><input id="accountKey" type="password" placeholder="base64 key" />
-      <button id="refreshBtn">Refresh</button>
-      <button id="saveBtn" class="secondary">Save</button>
-      <span id="statusLine" class="status-line">Not loaded.</span>
-    </div>
+  <section class="panel status-bar">
+    <span id="statusLine" class="status-line">Loading...</span>
     <div id="errorBox" class="error"></div>
   </section>
 
   <!-- KPI cards -->
   <section class="kpi-grid">
-    <div class="kpi" title="Total number of tracked user sessions across all VMs"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
-    <div class="kpi" title="Number of distinct lab VM machines reporting data"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">lab machines</div></div>
+    <div class="kpi" title="Total number of tracked FAIAD user sessions across all VMs"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
+    <div class="kpi" title="Number of distinct FAIAD VM machines reporting data"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">FAIAD machines</div></div>
     <div class="kpi kpi-highlight" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="kpiPost8h" class="value">0</div><div id="kpiPost8hPct" class="sub">0% of total</div></div>
     <div class="kpi kpi-highlight-active" title="Post-9h users with keyboard/mouse activity detected right now (in an open segment)"><div class="label">Post-9h &amp; Active now</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
     <div class="kpi" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-9h active time</div></div>
@@ -103,7 +91,7 @@
     <h3>Top post-9h users by extended usage</h3>
     <div style="overflow-x:auto">
       <table id="topUsersTable" class="top-table">
-        <thead><tr><th title="Rank by extended usage">#</th><th title="Name of the lab virtual machine">VM</th><th title="Windows username of the logged-in user">User</th><th title="Total active time after the 9-hour mark, summed across all segments">Ext. usage</th><th title="Number of distinct active periods after 9h. Each time the user goes idle longer than the idle buffer (default 10 min) and resumes, a new segment is counted.">Segments</th><th title="Current state: Active (still using), Idle (no recent input), or Hard stopped (hit 12h limit)">Status</th><th title="When the user's session started (first real keyboard/mouse input)">Started</th></tr></thead>
+        <thead><tr><th title="Rank by extended usage">#</th><th title="Name of the FAIAD virtual machine">VM</th><th title="Windows username of the logged-in user">User</th><th title="Total active time after the 9-hour mark, summed across all segments">Ext. usage</th><th title="Number of distinct active periods after 9h. Each time the user goes idle longer than the idle buffer (default 10 min) and resumes, a new segment is counted.">Segments</th><th title="Current state: Active (still using), Idle (no recent input), or Hard stopped (hit 12h limit)">Status</th><th title="When the user's session started (first real keyboard/mouse input)">Started</th></tr></thead>
         <tbody id="topUsersBody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No data.</td></tr></tbody>
       </table>
     </div>
@@ -112,20 +100,15 @@
 
 <script>
   const LS_KEY = "LabDashboardConfig";
-  const defaults = Object.assign({
+  const STORAGE_CONFIG = {
     storageAccountName: "copilots47e37hf4wbpe",
     tableName: "LabSessions",
     accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
     dashboardSasHours: 24,
     refreshSeconds: 15
-  }, window.LabDashboardConfig || {});
+  };
 
   const el = {
-    account: document.getElementById("storageAccountName"),
-    table: document.getElementById("tableName"),
-    key: document.getElementById("accountKey"),
-    refreshBtn: document.getElementById("refreshBtn"),
-    saveBtn: document.getElementById("saveBtn"),
     status: document.getElementById("statusLine"),
     err: document.getElementById("errorBox")
   };
@@ -133,25 +116,7 @@
   let charts = {};
   let timer = null;
 
-  function loadCfg() {
-    const s = localStorage.getItem(LS_KEY);
-    const c = s ? Object.assign({}, defaults, JSON.parse(s)) : defaults;
-    el.account.value = c.storageAccountName || "";
-    el.table.value = c.tableName || "LabSessions";
-    el.key.value = c.accountKey || "";
-  }
-
-  function readCfg() {
-    return {
-      storageAccountName: el.account.value.trim(),
-      tableName: el.table.value.trim() || "LabSessions",
-      accountKey: el.key.value.trim(),
-      dashboardSasHours: Number(defaults.dashboardSasHours || 24),
-      refreshSeconds: Number(defaults.refreshSeconds || 15)
-    };
-  }
-
-  function saveCfg() { localStorage.setItem(LS_KEY, JSON.stringify(readCfg())); el.status.textContent = "Saved."; }
+  function readCfg() { return STORAGE_CONFIG; }
   function showErr(msg) { el.err.style.display = msg ? "block" : "none"; el.err.textContent = msg || ""; }
 
   function b64ToBytes(b) { const r = atob(b.trim()); const a = new Uint8Array(r.length); for (let i=0;i<r.length;i++) a[i]=r.charCodeAt(i); return a; }
@@ -340,7 +305,7 @@
 
   async function refresh() {
     const cfg = readCfg();
-    showErr(""); el.refreshBtn.disabled = true;
+    showErr("");
     el.status.textContent = "Loading...";
     try {
       const rows = await fetchData(cfg);
@@ -350,16 +315,12 @@
       showErr(e.message||String(e));
       el.status.textContent = "Load failed.";
     } finally {
-      el.refreshBtn.disabled = false;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(refresh, Math.max(5, readCfg().refreshSeconds||15)*1000);
+      timer = setTimeout(refresh, Math.max(5, STORAGE_CONFIG.refreshSeconds||15)*1000);
     }
   }
 
-  el.refreshBtn.addEventListener("click", refresh);
-  el.saveBtn.addEventListener("click", saveCfg);
-  loadCfg();
-  if (readCfg().storageAccountName && readCfg().accountKey) refresh();
+  refresh();
 </script>
 </body>
 </html>
