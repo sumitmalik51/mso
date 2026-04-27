@@ -29,6 +29,21 @@
     .chart-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(24rem,1fr)); gap:1.25rem; }
     .chart-box { min-height:18rem; }
     canvas { width:100% !important; max-height:20rem; }
+    .kpi-highlight { background:linear-gradient(180deg,#fef3c7 0%,#fffbeb 100%) !important; border-color:#f59e0b !important; }
+    .kpi-highlight .value { color:#b54708; }
+    .kpi-highlight-active { background:linear-gradient(180deg,#fee2e2 0%,#fef2f2 100%) !important; border-color:#ef4444 !important; }
+    .kpi-highlight-active .value { color:#b42318; }
+    .top-table { width:100%; border-collapse:collapse; }
+    .top-table th,.top-table td { text-align:left; padding:0.6rem 0.75rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .top-table th { background:#f8fafc; color:#475467; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.07em; }
+    .top-table .bar-cell { min-width:10rem; }
+    .usage-bar { display:flex; align-items:center; gap:0.4rem; }
+    .usage-bar-track { flex:1; height:0.5rem; background:#e5e7eb; border-radius:999px; overflow:hidden; }
+    .usage-bar-fill { height:100%; border-radius:999px; }
+    .status-badge { display:inline-block; border-radius:999px; padding:0.25rem 0.5rem; font-size:0.75rem; font-weight:700; }
+    .status-badge.active { background:#fef3c7; color:#92400e; }
+    .status-badge.idle { background:#eef2ff; color:#3730a3; }
+    .status-badge.stopped { background:#fef3f2; color:#b42318; }
     .config-row { display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
     .config-row label { font-size:0.82rem; font-weight:600; color:var(--muted); margin:0; }
     .config-row input { width:14rem; border:1px solid var(--line); border-radius:0.75rem; padding:0.55rem 0.75rem; color:var(--ink); background:#fff; outline:none; }
@@ -44,7 +59,7 @@
 <body>
 <header>
   <h1>Lab VM Analytics</h1>
-  <p class="subtitle">Graphs and KPIs showing total users, post-8h usage, segment breakdown across all lab VMs.</p>
+  <p class="subtitle">Graphs and KPIs showing total users, post-9h extended usage, segment breakdown across all lab VMs.</p>
   <div class="nav"><a href="index.html">&larr; Session table dashboard</a></div>
 </header>
 
@@ -65,20 +80,33 @@
   <section class="kpi-grid">
     <div class="kpi"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
     <div class="kpi"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">lab machines</div></div>
-    <div class="kpi"><div class="label">Post-8h users</div><div id="kpiPost8h" class="value">0</div><div class="sub">crossed extended</div></div>
-    <div class="kpi"><div class="label">Currently active</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
-    <div class="kpi"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-8h active time</div></div>
-    <div class="kpi"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div class="sub">single session</div></div>
-    <div class="kpi"><div class="label">Pre-8h only</div><div id="kpiPre8h" class="value">0</div><div class="sub">not extended</div></div>
+    <div class="kpi kpi-highlight"><div class="label">Post-9h users</div><div id="kpiPost8h" class="value">0</div><div id="kpiPost8hPct" class="sub">0% of total</div></div>
+    <div class="kpi kpi-highlight-active"><div class="label">Post-9h &amp; Active now</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
+    <div class="kpi"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-9h active time</div></div>
+    <div class="kpi"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="sub">single session</div></div>
+    <div class="kpi"><div class="label">Pre-9h only</div><div id="kpiPre8h" class="value">0</div><div class="sub">within limit</div></div>
     <div class="kpi"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div><div class="sub">hit hard limit</div></div>
   </section>
 
   <!-- Charts -->
   <section class="chart-grid">
+    <div class="panel chart-box"><h3>Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
     <div class="panel chart-box"><h3>User status breakdown</h3><canvas id="chartStatus"></canvas></div>
-    <div class="panel chart-box"><h3>Post-8h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
-    <div class="panel chart-box"><h3>Segments per user</h3><canvas id="chartSegments"></canvas></div>
+    <div class="panel chart-box"><h3>Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
+    <div class="panel chart-box"><h3>Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
     <div class="panel chart-box"><h3>Extended usage per VM</h3><canvas id="chartPerVM"></canvas></div>
+    <div class="panel chart-box"><h3>Post-9h usage timeline</h3><canvas id="chartTimeline"></canvas></div>
+  </section>
+
+  <!-- Top Extended Users Table -->
+  <section class="panel">
+    <h3>Top post-9h users by extended usage</h3>
+    <div style="overflow-x:auto">
+      <table id="topUsersTable" class="top-table">
+        <thead><tr><th>#</th><th>VM</th><th>User</th><th>Ext. usage</th><th>Segments</th><th>Status</th><th>Started</th></tr></thead>
+        <tbody id="topUsersBody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No data.</td></tr></tbody>
+      </table>
+    </div>
   </section>
 </main>
 
@@ -161,49 +189,86 @@
 
   function destroyCharts() { Object.values(charts).forEach(c => c.destroy()); charts = {}; }
 
+  function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
   function renderAll(rows) {
     const vms = [...new Set(rows.map(r => r.VMName || r.PartitionKey).filter(Boolean))].sort();
     const extended = rows.filter(r => r.ExtendedStarted === true);
-    const activeNow = rows.filter(r => r.IsCurrentlyActive === true);
+    const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true);
     const hardStopped = rows.filter(r => r.ShutdownReason === "HardLimitReached");
-    const pre8h = rows.filter(r => r.ExtendedStarted !== true);
+    const pre9h = rows.filter(r => r.ExtendedStarted !== true);
     const extMins = extended.map(r => Number(r.ExtendedActiveMinutes)||0);
     const avgExt = extMins.length ? extMins.reduce((a,b)=>a+b,0)/extMins.length : 0;
     const maxExt = extMins.length ? Math.max(...extMins) : 0;
+    const maxExtRow = extended.find(r => (Number(r.ExtendedActiveMinutes)||0) === maxExt);
+    const pct = rows.length ? Math.round(extended.length / rows.length * 100) : 0;
 
     document.getElementById("kpiTotalUsers").textContent = rows.length;
     document.getElementById("kpiVMs").textContent = vms.length;
     document.getElementById("kpiPost8h").textContent = extended.length;
-    document.getElementById("kpiActiveNow").textContent = activeNow.length;
+    document.getElementById("kpiPost8hPct").textContent = `${pct}% of total`;
+    document.getElementById("kpiActiveNow").textContent = extActiveNow.length;
     document.getElementById("kpiAvgExt").textContent = fmtMin(avgExt);
     document.getElementById("kpiMaxExt").textContent = fmtMin(maxExt);
-    document.getElementById("kpiPre8h").textContent = pre8h.length;
+    document.getElementById("kpiMaxExtUser").textContent = maxExtRow ? (maxExtRow.VMName || maxExtRow.PartitionKey || "single session") : "single session";
+    document.getElementById("kpiPre8h").textContent = pre9h.length;
     document.getElementById("kpiHardStop").textContent = hardStopped.length;
 
     destroyCharts();
 
+    // Post-9h vs Within Limit ratio doughnut (large, prominent)
+    charts.ratio = new Chart(document.getElementById("chartRatio"), {
+      type: "doughnut",
+      data: {
+        labels: [`Post-9h (${extended.length})`, `Within limit (${pre9h.length})`],
+        datasets: [{ data: [extended.length, pre9h.length], backgroundColor: ["#f59e0b","#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, cutout: "60%",
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 13, weight: "bold" } } },
+          tooltip: { callbacks: { label: function(ctx) { const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return `${ctx.label}: ${ctx.raw} (${t?Math.round(ctx.raw/t*100):0}%)`; } } }
+        }
+      },
+      plugins: [{
+        id: "centerText",
+        afterDraw(chart) {
+          const {ctx, width, height} = chart;
+          ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.font = "bold 2.2rem 'Segoe UI', system-ui, sans-serif";
+          ctx.fillStyle = "#b54708";
+          ctx.fillText(`${pct}%`, width/2, height/2 - 8);
+          ctx.font = "600 0.85rem 'Segoe UI', system-ui, sans-serif";
+          ctx.fillStyle = "#667085";
+          ctx.fillText("post-9h", width/2, height/2 + 18);
+          ctx.restore();
+        }
+      }]
+    });
+
     // Status breakdown doughnut
-    const statusCounts = { "Pre-8h": pre8h.length, "Extended Active": activeNow.length, "Extended Idle": extended.length - activeNow.length, "Hard Stopped": hardStopped.length };
+    const extIdleCount = extended.filter(r => r.IsCurrentlyActive !== true && r.ShutdownReason !== "HardLimitReached").length;
+    const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length };
     charts.status = new Chart(document.getElementById("chartStatus"), {
       type: "doughnut",
       data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981","#f59e0b","#94a3b8","#ef4444"], borderWidth: 2, borderColor: "#fff" }] },
       options: { responsive: true, plugins: { legend: { position: "bottom" } } }
     });
 
-    // Extended usage histogram (bar)
-    const buckets = {"0m":0, "1-5m":0, "5-15m":0, "15-30m":0, "30-60m":0, "1h+":0};
+    // Extended usage histogram (bar) — improved buckets
+    const buckets = {"0m":0, "1-10m":0, "10-30m":0, "30m-1h":0, "1-2h":0, "2h+":0};
     extMins.forEach(m => {
       if (m <= 0) buckets["0m"]++;
-      else if (m <= 5) buckets["1-5m"]++;
-      else if (m <= 15) buckets["5-15m"]++;
-      else if (m <= 30) buckets["15-30m"]++;
-      else if (m <= 60) buckets["30-60m"]++;
-      else buckets["1h+"]++;
+      else if (m <= 10) buckets["1-10m"]++;
+      else if (m <= 30) buckets["10-30m"]++;
+      else if (m <= 60) buckets["30m-1h"]++;
+      else if (m <= 120) buckets["1-2h"]++;
+      else buckets["2h+"]++;
     });
     charts.extUsage = new Chart(document.getElementById("chartExtUsage"), {
       type: "bar",
-      data: { labels: Object.keys(buckets), datasets: [{ label: "Users", data: Object.values(buckets), backgroundColor: "#2563eb", borderRadius: 6 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      data: { labels: Object.keys(buckets), datasets: [{ label: "Users", data: Object.values(buckets), backgroundColor: ["#d1d5db","#93c5fd","#60a5fa","#f59e0b","#f97316","#ef4444"], borderRadius: 6 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: "Number of users" } } } }
     });
 
     // Segments per user histogram
@@ -232,6 +297,45 @@
       data: { labels: sortedVMs.map(v=>v[0]), datasets: [{ label: "Ext. minutes", data: sortedVMs.map(v=>Math.round(v[1])), backgroundColor: "#7c3aed", borderRadius: 6 }] },
       options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
     });
+
+    // Post-9h usage timeline (scatter plot — each user as a dot)
+    const timelineData = extended.map(r => {
+      const start = new Date(r.UserStartTime);
+      return { x: Number(r.ExtendedActiveMinutes)||0, y: r.VMName || r.PartitionKey || "?", start };
+    }).sort((a,b) => b.x - a.x);
+    const tlLabels = timelineData.map(d => d.y);
+    const tlData = timelineData.map(d => d.x);
+    charts.timeline = new Chart(document.getElementById("chartTimeline"), {
+      type: "bar",
+      data: { labels: tlLabels, datasets: [{ label: "Ext. minutes", data: tlData, backgroundColor: tlData.map(m => m > 120 ? "#ef4444" : m > 60 ? "#f59e0b" : "#10b981"), borderRadius: 6 }] },
+      options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, title: { display: true, text: "Extended minutes" } } } }
+    });
+
+    // Top extended users table
+    const topUsers = [...extended].sort((a,b) => (Number(b.ExtendedActiveMinutes)||0) - (Number(a.ExtendedActiveMinutes)||0)).slice(0, 15);
+    const tbody = document.getElementById("topUsersBody");
+    if (topUsers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No post-9h users yet.</td></tr>';
+    } else {
+      tbody.innerHTML = topUsers.map((r, i) => {
+        const mins = Number(r.ExtendedActiveMinutes)||0;
+        const segs = Number(r.ExtendedSegmentCount)||0;
+        const barPct = maxExt > 0 ? Math.round(mins / maxExt * 100) : 0;
+        const barColor = mins > 120 ? "#ef4444" : mins > 60 ? "#f59e0b" : "#10b981";
+        const statusCls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : "idle");
+        const statusTxt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : "Idle");
+        const started = r.UserStartTime ? new Date(r.UserStartTime).toLocaleString() : "-";
+        return `<tr>
+          <td>${i+1}</td>
+          <td><strong>${escHtml(r.VMName || r.PartitionKey || "-")}</strong></td>
+          <td>${escHtml(r.UserName || "-")}</td>
+          <td class="bar-cell"><div class="usage-bar">${fmtMin(mins)}<div class="usage-bar-track"><div class="usage-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div></div></td>
+          <td>${segs}</td>
+          <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
+          <td>${started}</td>
+        </tr>`;
+      }).join("");
+    }
   }
 
   async function refresh() {
