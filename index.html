@@ -305,8 +305,8 @@
         <div id="kpiActiveNow" class="value">0</div>
         <div class="pct-sub">in an open extended segment</div>
       </div>
-      <div class="card hero highlight" title="Users who continued past the 9-hour threshold">
-        <div class="label">Post-9h users <span class="help" title="Sessions that crossed the 9-hour mark and entered extended monitoring">ⓘ</span></div>
+      <div class="card hero highlight" title="All users (including those whose VM was later deleted) who continued past the 9-hour threshold">
+        <div class="label">Post-9h users <span class="help" title="Sessions that crossed the 9-hour mark — includes deleted-VM history so total post-9h usage is preserved">ⓘ</span></div>
         <div id="kpiExtended" class="value">0</div>
         <div id="kpiExtendedPct" class="pct-sub">0% of total</div>
       </div>
@@ -321,8 +321,8 @@
     <section class="kpi-secondary">
       <div class="card ok" title="Distinct lab VMs that have reported at least one session"><div class="label">VMs <span class="help" title="Count of unique VM names that appear in the current filtered data set">ⓘ</span></div><div id="kpiVMs" class="value">0</div><div class="pct-sub">distinct machines</div></div>
       <div class="card muted" title="VMs that no longer exist in Azure but still have historical session rows"><div class="label">Deleted VMs <span class="help" title="VMs flagged as VMDeleted by the cleanup runbook — historical sessions kept for audit">ⓘ</span></div><div id="kpiDeleted" class="value">0</div><div id="kpiDeletedPct" class="pct-sub">0% of VMs</div></div>
-      <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes for users who crossed the 9-hour threshold">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div><div class="pct-sub">post-9h users</div></div>
-      <div class="card danger" title="Highest extended (post-9h) active minutes recorded in a single session"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+      <div class="card warn" title="Average extended (post-9h) active minutes across all post-9h users (including deleted-VM history)"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across all post-9h sessions, including those on VMs that were later deleted">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div><div class="pct-sub">post-9h users</div></div>
+      <div class="card danger" title="Highest extended (post-9h) active minutes ever recorded in a single session (includes deleted-VM history)"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM (may be deleted)">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
     </section>
 
     <!-- Filter toolbar -->
@@ -594,7 +594,8 @@
       const filteredVms = [...new Set(filtered.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
       const deletedRows = filtered.filter(r => r.Status === "VMDeleted");
       const activeRows = filtered.filter(r => r.Status !== "VMDeleted");
-      const extended = activeRows.filter(r => r.ExtendedStarted === true);
+      // Historical post-9h stats include deleted-VM sessions — those minutes were real usage.
+      const extended = filtered.filter(r => r.ExtendedStarted === true);
       const activeNow = activeRows.filter(r => r.IsCurrentlyActive === true);
       const extMinutes = extended.map(r => Number(r.ExtendedActiveMinutes) || 0);
       const avgExt = extMinutes.length ? extMinutes.reduce((a, b) => a + b, 0) / extMinutes.length : 0;
@@ -640,7 +641,18 @@
         if (r.ExtendedStarted === true) cur.extended = true;
         vmInfo.set(vm, cur);
       });
-      const vmNames = [...vmInfo.keys()].sort();
+      const vmNames = [...vmInfo.keys()].sort((a, b) => {
+        // Priority: active (running) → extended (post-9h) → pre-9h → deleted
+        const rank = vm => {
+          const i = vmInfo.get(vm);
+          if (i.deleted) return 3;
+          if (i.active) return 0;
+          if (i.extended) return 1;
+          return 2;
+        };
+        const ra = rank(a), rb = rank(b);
+        return ra !== rb ? ra - rb : a.localeCompare(b);
+      });
       $("vmStrip").innerHTML = vmNames.length
         ? vmNames.map(vm => {
             const info = vmInfo.get(vm);
@@ -920,3 +932,4 @@
   </script>
 </body>
 </html>
+
