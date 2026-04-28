@@ -515,7 +515,7 @@
       if (row.StoppedDueToIdle === true || row.ShutdownReason === "IdleAfterExtendedPeriod") {
         return { text: "Idle stopped", className: "danger" };
       }
-      return { text: row.Status || "Pre-9h", className: "ok" };
+      return { text: "Pre-9h", className: "ok" };
     }
 
     function render(rows) {
