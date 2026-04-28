@@ -328,11 +328,11 @@
     </section>
 
     <section class="panel" aria-labelledby="vmHeading">
-      <div class="toolbar">
-        <h2 id="vmHeading">FAIAD VM names</h2>
+      <div class="toolbar" id="vmToggle" style="cursor:pointer;user-select:none">
+        <h2 id="vmHeading"><span id="vmChevron" class="chevron" style="display:inline-block;transition:transform 0.2s ease;margin-right:0.5rem;font-size:0.75rem;transform:rotate(-90deg)">&#9660;</span>FAIAD VM names <span id="vmPillCount" class="section-count"></span></h2>
         <span class="status-line">Distinct VM names from FAIAD</span>
       </div>
-      <div id="vmStrip" class="vm-strip"></div>
+      <div id="vmStrip" class="vm-strip" style="display:none"></div>
     </section>
 
     <section class="panel" aria-labelledby="sessionsHeading">
@@ -646,6 +646,9 @@
         sectionHtml('pre9h', 'Pre-9h Sessions', '#10b981', preGroup) +
         sectionHtml('deleted', 'Deleted VMs', '#9ca3af', delGroup);
 
+      // VM strip toggle
+      document.getElementById('vmPillCount').textContent = '(' + vmNames.length + ')';
+
       // Attach toggle listeners
       elements.sessionsBody.querySelectorAll('.section-header').forEach(hdr => {
         hdr.addEventListener('click', () => {
@@ -693,6 +696,19 @@
       const seconds = Math.max(5, Number(STORAGE_CONFIG.refreshSeconds || 5));
       refreshTimer = window.setTimeout(refresh, seconds * 1000);
     }
+
+    // VM panel toggle
+    (function() {
+      var collapsed = true;
+      var tog = document.getElementById('vmToggle');
+      var strip = document.getElementById('vmStrip');
+      var chev = document.getElementById('vmChevron');
+      tog.addEventListener('click', function() {
+        collapsed = !collapsed;
+        strip.style.display = collapsed ? 'none' : '';
+        chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+      });
+    })();
 
     refresh();
   </script>
