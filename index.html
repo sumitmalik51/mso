@@ -245,6 +245,7 @@
     .badge.warn { background: #fffaeb; color: var(--warn); }
     .badge.danger { background: #fef3f2; color: var(--danger); }
     .badge.neutral { background: #eef2ff; color: #3730a3; }
+    .badge.deleted { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
 
     .error {
       display: none;
@@ -283,6 +284,7 @@
     <section class="cards" aria-label="Summary cards">
       <div class="card" title="Total number of tracked FAIAD user sessions across all VMs"><div class="label">Sessions</div><div id="sessionsCount" class="value">0</div></div>
       <div class="card" title="Number of distinct FAIAD VM machines reporting data"><div class="label">VMs</div><div id="vmCount" class="value">0</div></div>
+      <div class="card" title="VMs that have been deleted from the Azure subscription but still have session data"><div class="label">Deleted VMs</div><div id="deletedCount" class="value">0</div><div id="deletedPct" class="pct-sub">0% of total</div></div>
       <div class="card highlight-card" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="extendedCount" class="value">0</div><div id="extendedPct" class="pct-sub">0% of total</div></div>
       <div class="card" title="Users with keyboard/mouse activity detected right now (post-9h, in an open segment)"><div class="label">Currently active</div><div id="activeNowCount" class="value">0</div></div>
       <div class="card" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="avgExtendedMinutes" class="value">0m</div></div>
@@ -495,6 +497,9 @@
     }
 
     function statusFor(row) {
+      if (row.Status === "VMDeleted") {
+        return { text: "VM Deleted", className: "deleted" };
+      }
       if (row.Status === "HardStopped" || row.ShutdownReason === "HardLimitReached") {
         return { text: "Hard stop", className: "danger" };
       }
@@ -518,8 +523,11 @@
       rows.sort((a, b) => (parseDate(b.LastActivityTime)?.getTime() || 0) - (parseDate(a.LastActivityTime)?.getTime() || 0));
 
       const vmNames = [...new Set(rows.map(row => row.VMName || row.PartitionKey).filter(Boolean))].sort();
-      const extendedRows = rows.filter(row => row.ExtendedStarted === true);
-      const activeNow = rows.filter(row => row.IsCurrentlyActive === true);
+      const deletedRows = rows.filter(row => row.Status === 'VMDeleted');
+      const deletedVMs = [...new Set(deletedRows.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
+      const activeRows = rows.filter(row => row.Status !== 'VMDeleted');
+      const extendedRows = activeRows.filter(row => row.ExtendedStarted === true);
+      const activeNow = activeRows.filter(row => row.IsCurrentlyActive === true);
       const extMinutes = extendedRows.map(r => Number(r.ExtendedActiveMinutes) || 0);
       const avgExt = extMinutes.length ? (extMinutes.reduce((a, b) => a + b, 0) / extMinutes.length) : 0;
 
@@ -529,6 +537,8 @@
 
       elements.sessionsCount.textContent = rows.length.toString();
       elements.vmCount.textContent = vmNames.length.toString();
+      document.getElementById('deletedCount').textContent = deletedVMs.length.toString();
+      document.getElementById('deletedPct').textContent = vmNames.length ? `${Math.round(deletedVMs.length / vmNames.length * 100)}% of VMs` : '0%';
       elements.extendedCount.textContent = extendedRows.length.toString();
       document.getElementById('extendedPct').textContent = `${pct}% of total`;
       elements.activeNowCount.textContent = activeNow.length.toString();
@@ -537,7 +547,10 @@
       document.getElementById('maxExtUser').textContent = maxExtRow ? (maxExtRow.VMName || maxExtRow.PartitionKey || '') : '';
 
       elements.vmStrip.innerHTML = vmNames.length
-        ? vmNames.map(vm => `<span class="vm-pill">${escapeHtml(vm)}</span>`).join("")
+        ? vmNames.map(vm => {
+            const isDeleted = deletedVMs.includes(vm);
+            return `<span class="vm-pill" style="${isDeleted ? 'opacity:0.5;text-decoration:line-through;border-color:#d1d5db' : ''}" title="${isDeleted ? 'VM deleted from Azure' : 'Active VM'}">${escapeHtml(vm)}${isDeleted ? ' \u2020' : ''}</span>`;
+          }).join("")
         : `<span class="status-line">No VM names found.</span>`;
 
       if (!rows.length) {
