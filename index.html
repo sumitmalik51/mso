@@ -319,15 +319,15 @@
 
     <!-- Tier 2: secondary KPIs -->
     <section class="kpi-secondary">
-      <div class="card ok"><div class="label">VMs</div><div id="kpiVMs" class="value">0</div><div class="pct-sub">distinct machines</div></div>
-      <div class="card muted"><div class="label">Deleted VMs</div><div id="kpiDeleted" class="value">0</div><div id="kpiDeletedPct" class="pct-sub">0% of VMs</div></div>
-      <div class="card warn"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="pct-sub">post-9h users</div></div>
-      <div class="card danger"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+      <div class="card ok" title="Distinct lab VMs that have reported at least one session"><div class="label">VMs <span class="help" title="Count of unique VM names that appear in the current filtered data set">ⓘ</span></div><div id="kpiVMs" class="value">0</div><div class="pct-sub">distinct machines</div></div>
+      <div class="card muted" title="VMs that no longer exist in Azure but still have historical session rows"><div class="label">Deleted VMs <span class="help" title="VMs flagged as VMDeleted by the cleanup runbook — historical sessions kept for audit">ⓘ</span></div><div id="kpiDeleted" class="value">0</div><div id="kpiDeletedPct" class="pct-sub">0% of VMs</div></div>
+      <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes for users who crossed the 9-hour threshold">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div><div class="pct-sub">post-9h users</div></div>
+      <div class="card danger" title="Highest extended (post-9h) active minutes recorded in a single session"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
     </section>
 
     <!-- Filter toolbar -->
     <div class="toolbar" role="toolbar" aria-label="Filters">
-      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" />
+      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" title="Type to filter sessions by VM name or user name (case-insensitive)" />
       <select id="statusFilter" title="Filter by status">
         <option value="all">All statuses</option>
         <option value="active">Active (post-9h)</option>
@@ -354,8 +354,8 @@
     <!-- VM strip -->
     <section class="panel" aria-labelledby="vmHeading">
       <div class="toolbar-section-title">
-        <h2 id="vmHeading">FAIAD VM names <span class="meta" id="vmStripMeta"></span></h2>
-        <button id="vmToggle" class="vm-toggle">Show all ▾</button>
+        <h2 id="vmHeading" title="All VM names known to the tracker. Click any chip to filter the table by that VM.">FAIAD VM names <span class="meta" id="vmStripMeta"></span></h2>
+        <button id="vmToggle" class="vm-toggle" title="Expand or collapse the full VM list">Show all ▾</button>
       </div>
       <div id="vmStrip" class="vm-strip collapsed"></div>
     </section>
@@ -363,8 +363,8 @@
     <!-- Sessions table -->
     <section class="panel" aria-labelledby="sessionsHeading">
       <div class="toolbar-section-title">
-        <h2 id="sessionsHeading">Sessions</h2>
-        <span id="sessionsMeta" class="meta">—</span>
+        <h2 id="sessionsHeading" title="All FAIAD sessions matching the current filters. Click a row to expand its details.">Sessions</h2>
+        <span id="sessionsMeta" class="meta" title="Number of rows shown vs. total tracked sessions">—</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -372,11 +372,11 @@
             <tr id="tableHead">
               <th data-sort="vm" title="Click to sort by VM / user">VM &amp; User</th>
               <th data-sort="status" title="Click to sort by current status">Status</th>
-              <th data-sort="started" title="Click to sort by session start time">Started</th>
-              <th data-sort="lastActivity" title="Click to sort by last input">Last activity</th>
+              <th data-sort="started" title="Click to sort by session start time">Session started</th>
+              <th data-sort="lastActivity" title="Click to sort by the user's last keyboard / mouse input">Last user input</th>
               <th data-sort="extUsage" title="Click to sort by extended (post-9h) active minutes">Ext. usage</th>
               <th data-sort="segments" title="Click to sort by segment count">Segments</th>
-              <th data-sort="heartbeat" title="Click to sort by heartbeat freshness">Last seen</th>
+              <th data-sort="heartbeat" title="Click to sort by tracker heartbeat freshness — confirms the tracker script is alive">Tracker heartbeat</th>
             </tr>
           </thead>
           <tbody id="sessionsBody">
