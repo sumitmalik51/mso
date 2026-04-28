@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FAIAD Analytics Dashboard</title>
+  <title>FAIAD Analytics</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
       --bg: #f5f7fb; --panel: #ffffff; --ink: #172033; --muted: #667085;
@@ -13,318 +14,591 @@
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: radial-gradient(circle at top left,#e0ecff 0,transparent 36rem), var(--bg); color: var(--ink); }
-    header { padding: 2rem clamp(1rem,4vw,3rem) 1rem; }
-    h1 { margin:0; font-size: clamp(2rem,4vw,3.3rem); letter-spacing:-0.04em; }
-    .subtitle { margin-top:0.5rem; color: var(--muted); line-height:1.6; }
-    .nav { display:flex; gap:0.75rem; margin-top:0.75rem; }
-    .nav a { color: var(--accent); text-decoration:none; font-weight:700; font-size:0.9rem; }
+
+    .live-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      padding: 0.55rem clamp(1rem, 4vw, 3rem);
+      display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;
+      font-size: 0.88rem; font-weight: 600;
+    }
+    .live-bar .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #ef4444; margin-right: 0.4rem; vertical-align: middle; animation: pulse 1.6s ease-in-out infinite; }
+    .live-bar .dot.idle { background: #94a3b8; animation: none; }
+    .live-bar .stat strong { color: var(--accent); font-size: 1rem; }
+    .live-bar .sep { color: var(--line); }
+    .live-bar .right { margin-left: auto; display:flex; gap: 0.75rem; align-items:center; color: var(--muted); font-weight: 500; font-size: 0.82rem; }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); transform: scale(1); }
+      50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); transform: scale(1.15); }
+    }
+    .refresh-ring { width: 1.1rem; height: 1.1rem; }
+    .refresh-ring circle { fill: none; stroke: var(--line); stroke-width: 2; }
+    .refresh-ring .progress { stroke: var(--accent); stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; transition: stroke-dashoffset 1s linear; }
+
+    header { padding: 1.5rem clamp(1rem,4vw,3rem) 0.5rem; }
+    h1 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.4rem); letter-spacing: -0.03em; }
+    .subtitle { margin-top: 0.4rem; color: var(--muted); line-height: 1.55; font-size: 0.92rem; }
+    .nav { display: flex; gap: 1rem; margin-top: 0.6rem; }
+    .nav a { color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.9rem; }
     .nav a:hover { text-decoration: underline; }
-    main { padding: 0 clamp(1rem,4vw,3rem) 3rem; }
-    .panel { background: rgba(255,255,255,0.93); border:1px solid rgba(217,224,236,0.9); border-radius:1.25rem; box-shadow: var(--shadow); padding:1.25rem; margin-bottom:1.25rem; }
-    .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(10rem,1fr)); gap:1rem; margin-bottom:1.25rem; }
-    .kpi { background:linear-gradient(180deg,#fff 0%,#f8fbff 100%); border:1px solid var(--line); border-radius:1rem; padding:1rem; text-align:center; }
-    .kpi .label { color:var(--muted); font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; }
-    .kpi .value { margin-top:0.35rem; font-size:2.2rem; font-weight:800; letter-spacing:-0.04em; }
-    .kpi .sub { color:var(--muted); font-size:0.8rem; margin-top:0.2rem; }
-    .chart-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(24rem,1fr)); gap:1.25rem; }
-    .chart-box { min-height:18rem; }
-    canvas { width:100% !important; max-height:20rem; }
-    .kpi-highlight { background:linear-gradient(180deg,#fef3c7 0%,#fffbeb 100%) !important; border-color:#f59e0b !important; }
-    .kpi-highlight .value { color:#b54708; }
-    .kpi-highlight-active { background:linear-gradient(180deg,#fee2e2 0%,#fef2f2 100%) !important; border-color:#ef4444 !important; }
-    .kpi-highlight-active .value { color:#b42318; }
-    .top-table { width:100%; border-collapse:collapse; }
-    .top-table th,.top-table td { text-align:left; padding:0.6rem 0.75rem; border-bottom:1px solid var(--line); white-space:nowrap; }
-    .top-table th { background:#f8fafc; color:#475467; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.07em; }
-    .top-table .bar-cell { min-width:10rem; }
-    .usage-bar { display:flex; align-items:center; gap:0.4rem; }
-    .usage-bar-track { flex:1; height:0.5rem; background:#e5e7eb; border-radius:999px; overflow:hidden; }
-    .usage-bar-fill { height:100%; border-radius:999px; }
-    .status-badge { display:inline-block; border-radius:999px; padding:0.25rem 0.5rem; font-size:0.75rem; font-weight:700; }
-    .status-badge.active { background:#fef3c7; color:#92400e; }
-    .status-badge.idle { background:#eef2ff; color:#3730a3; }
-    .status-badge.stopped { background:#fef3f2; color:#b42318; }
-    .status-badge.deleted { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
-    .status-bar { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
-    .status-line { color:var(--muted); font-size:0.85rem; }
-    .error { display:none; background:#fef3f2; border:1px solid #fecdca; color:var(--danger); border-radius:0.9rem; padding:0.8rem 1rem; margin-top:0.75rem; white-space:pre-wrap; }
+
+    main { padding: 0.75rem clamp(1rem,4vw,3rem) 3rem; }
+    .panel { background: rgba(255,255,255,0.96); border: 1px solid rgba(217,224,236,0.9); border-radius: 1rem; box-shadow: var(--shadow); padding: 1.1rem; margin-bottom: 1rem; }
+
+    /* KPIs */
+    .kpi-hero { display: grid; grid-template-columns: repeat(auto-fit,minmax(15rem,1fr)); gap: 1rem; margin-bottom: 0.75rem; }
+    .kpi-secondary { display: grid; grid-template-columns: repeat(auto-fit,minmax(10rem,1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .card { background: linear-gradient(180deg,#fff 0%,#f8fbff 100%); border: 1px solid var(--line); border-radius: 0.85rem; padding: 1rem 1.1rem; position: relative; overflow: hidden; }
+    .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent); }
+    .card.warn::before { background: #f59e0b; }
+    .card.danger::before { background: #ef4444; }
+    .card.ok::before { background: #10b981; }
+    .card.muted::before { background: #94a3b8; }
+    .card .label { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .card .value { margin-top: 0.35rem; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+    .card.hero .value { font-size: 2.4rem; }
+    .card .pct-sub { margin-top: 0.2rem; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+    .card.live { background: linear-gradient(180deg,#fee2e2 0%,#fef2f2 100%); border-color: #fecaca; }
+    .card.live::before { background: #ef4444; }
+    .card.live .value { color: var(--danger); }
+    .card.highlight { background: linear-gradient(180deg,#fef3c7 0%,#fffbeb 100%); border-color: #fde68a; }
+    .card.highlight::before { background: #f59e0b; }
+    .card.highlight .value { color: var(--warn); }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; padding: 0.85rem 1rem; background: #fff; border: 1px solid var(--line); border-radius: 0.85rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
+    .toolbar select, .toolbar input[type="search"] { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.88rem; background: #fff; color: var(--ink); outline: none; min-width: 8rem; }
+    .toolbar select:focus, .toolbar input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    .toolbar input[type="search"] { min-width: 14rem; flex: 1; }
+    .toolbar button { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.85rem; background: #fff; color: var(--ink); font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+    .toolbar button:hover { background: #f8fafc; border-color: var(--accent); }
+    .toolbar button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .toolbar button.primary:hover { background: #1d4ed8; }
+    .toolbar button.paused { background: #fffaeb; border-color: #f59e0b; color: #92400e; }
+    .toolbar .spacer { flex: 1; }
+    .toolbar .right { margin-left: auto; color: var(--muted); font-size: 0.82rem; }
+
+    .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem; }
+    .chip { display: inline-flex; align-items: center; gap: 0.35rem; background: #eef2ff; color: #3730a3; border-radius: 999px; padding: 0.25rem 0.6rem; font-size: 0.78rem; font-weight: 700; }
+    .chip button { background: none; border: 0; color: inherit; cursor: pointer; font-weight: 800; padding: 0; line-height: 1; font-size: 1rem; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
+    .tab { background: transparent; border: 0; padding: 0.65rem 1rem; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; font-size: 0.92rem; transition: all 0.15s; }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(24rem,1fr)); gap: 1.25rem; }
+    .chart-box { min-height: 18rem; }
+    .chart-box h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+    canvas { width: 100% !important; max-height: 22rem; }
+
+    .top-table { width: 100%; border-collapse: collapse; }
+    .top-table th, .top-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 0.88rem; }
+    .top-table th { background: #f8fafc; color: #475467; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; user-select: none; }
+    .top-table th:hover { background: #eef2ff; color: var(--accent); }
+    .top-table .bar-cell { min-width: 10rem; }
+    .usage-bar { display: flex; align-items: center; gap: 0.4rem; }
+    .usage-bar-track { flex: 1; height: 0.5rem; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .usage-bar-fill { height: 100%; border-radius: 999px; }
+    .status-badge { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.74rem; font-weight: 800; }
+    .status-badge .b-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; }
+    .status-badge.active { background: #fffaeb; color: #92400e; }
+    .status-badge.active .b-dot { background: #f59e0b; animation: pulse 1.6s ease-in-out infinite; }
+    .status-badge.idle { background: #eef2ff; color: #3730a3; }
+    .status-badge.stopped { background: #fef3f2; color: #b42318; }
+    .status-badge.deleted { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+    .empty { color: var(--muted); padding: 1rem; text-align: center; font-style: italic; }
+    .error { display: none; background: #fef3f2; border: 1px solid #fecdca; color: var(--danger); border-radius: 0.7rem; padding: 0.7rem 0.9rem; white-space: pre-wrap; font-size: 0.85rem; margin-bottom: 0.75rem; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="config.js"></script>
 </head>
 <body>
-<header>
-  <h1>FAIAD Analytics</h1>
-  <p class="subtitle">Graphs and KPIs showing total FAIAD users, post-9h extended usage, and segment breakdown across all FAIAD VMs.</p>
-  <div class="nav"><a href="index.html">&larr; FAIAD Session Dashboard</a></div>
-</header>
-
-<main>
-  <section class="panel status-bar">
-    <span id="statusLine" class="status-line">Loading...</span>
-    <div id="errorBox" class="error"></div>
-  </section>
-
-  <!-- KPI cards -->
-  <section class="kpi-grid">
-    <div class="kpi" title="Total number of tracked FAIAD user sessions across all VMs"><div class="label">Total users</div><div id="kpiTotalUsers" class="value">0</div><div class="sub">distinct sessions</div></div>
-    <div class="kpi" title="Number of distinct FAIAD VM machines reporting data"><div class="label">Unique VMs</div><div id="kpiVMs" class="value">0</div><div class="sub">FAIAD machines</div></div>
-    <div class="kpi kpi-highlight" title="Users who continued using the VM beyond the 9-hour threshold. Shows what percentage of all users exceeded the limit."><div class="label">Post-9h users</div><div id="kpiPost8h" class="value">0</div><div id="kpiPost8hPct" class="sub">0% of total</div></div>
-    <div class="kpi kpi-highlight-active" title="Post-9h users with keyboard/mouse activity detected right now (in an open segment)"><div class="label">Post-9h &amp; Active now</div><div id="kpiActiveNow" class="value">0</div><div class="sub">right now</div></div>
-    <div class="kpi" title="Average total active time (across all segments) spent by post-9h users after the 9-hour mark"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div><div class="sub">post-9h active time</div></div>
-    <div class="kpi" title="Highest total extended active time recorded by a single session after the 9-hour mark"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="sub">single session</div></div>
-    <div class="kpi" title="Users who stayed within the 9-hour limit and never entered extended monitoring"><div class="label">Pre-9h only</div><div id="kpiPre8h" class="value">0</div><div class="sub">within limit</div></div>
-    <div class="kpi" title="Sessions that were forcibly shut down after reaching the hard stop limit (12 hours by default)"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div><div class="sub">hit hard limit</div></div>
-  </section>
-
-  <!-- Charts -->
-  <section class="chart-grid">
-    <div class="panel chart-box"><h3 title="Ratio of users who exceeded the 9-hour limit vs those who stayed within it">Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
-    <div class="panel chart-box"><h3 title="Breakdown of all sessions by their current state: Pre-9h, Post-9h Active, Post-9h Idle, or Hard Stopped">User status breakdown</h3><canvas id="chartStatus"></canvas></div>
-    <div class="panel chart-box"><h3 title="How much active time post-9h users spent after the threshold, grouped into time buckets">Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
-    <div class="panel chart-box"><h3 title="How many distinct active periods (segments) each post-9h user had. A segment is a burst of keyboard/mouse activity; going idle longer than the buffer closes a segment.">Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
-    <div class="panel chart-box"><h3 title="Total extended active minutes aggregated per VM, showing which machines had the most post-9h usage">Extended usage per VM</h3><canvas id="chartPerVM"></canvas></div>
-    <div class="panel chart-box"><h3 title="Each post-9h user's total extended active time as a horizontal bar, color-coded: green (<1h), amber (1-2h), red (>2h)">Post-9h usage timeline</h3><canvas id="chartTimeline"></canvas></div>
-  </section>
-
-  <!-- Top Extended Users Table -->
-  <section class="panel">
-    <h3>Top post-9h users by extended usage</h3>
-    <div style="overflow-x:auto">
-      <table id="topUsersTable" class="top-table">
-        <thead><tr><th title="Rank by extended usage">#</th><th title="Name of the FAIAD virtual machine">VM</th><th title="Windows username of the logged-in user">User</th><th title="Total active time after the 9-hour mark, summed across all segments">Ext. usage</th><th title="Number of distinct active periods after 9h. Each time the user goes idle longer than the idle buffer (default 10 min) and resumes, a new segment is counted.">Segments</th><th title="Current state: Active (still using), Idle (no recent input), or Hard stopped (hit 12h limit)">Status</th><th title="When the user's session started (first real keyboard/mouse input)">Started</th></tr></thead>
-        <tbody id="topUsersBody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No data.</td></tr></tbody>
-      </table>
+  <div class="live-bar">
+    <span class="stat"><span id="liveDot" class="dot"></span><strong id="liveActive">0</strong> active now</span>
+    <span class="sep">|</span>
+    <span class="stat"><strong id="liveExt">0</strong> post-9h</span>
+    <span class="sep">|</span>
+    <span class="stat"><strong id="liveTotal">0</strong> sessions</span>
+    <span class="sep">|</span>
+    <span class="stat"><strong id="liveVMs">0</strong> VMs</span>
+    <div class="right">
+      <span id="liveStatus">Loading…</span>
+      <svg class="refresh-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle id="refreshProgress" class="progress" cx="12" cy="12" r="10" stroke-dasharray="62.83" stroke-dashoffset="0"/></svg>
     </div>
-  </section>
-</main>
+  </div>
 
-<script>
-  const LS_KEY = "LabDashboardConfig";
-  const STORAGE_CONFIG = {
-    storageAccountName: "copilots47e37hf4wbpe",
-    tableName: "LabSessions",
-    accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
-    dashboardSasHours: 24,
-    refreshSeconds: 15
-  };
+  <header>
+    <h1>FAIAD Analytics</h1>
+    <p class="subtitle">Charts, KPIs and rankings for FAIAD post-9h extended usage across all lab VMs.</p>
+    <div class="nav"><a href="index.html">← Session Dashboard</a></div>
+  </header>
 
-  const el = {
-    status: document.getElementById("statusLine"),
-    err: document.getElementById("errorBox")
-  };
+  <main>
+    <div id="errorBox" class="error"></div>
 
-  let charts = {};
-  let timer = null;
+    <!-- Filter toolbar -->
+    <div class="toolbar">
+      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" />
+      <select id="monthFilter" title="Filter by start month">
+        <option value="all">All time</option>
+        <option value="this">This month</option>
+        <option value="last">Last month</option>
+      </select>
+      <span class="spacer"></span>
+      <button id="pauseBtn">⏸ Pause</button>
+      <button id="refreshBtn" class="primary">↻ Refresh</button>
+    </div>
+    <div id="filterChips" class="filter-chips"></div>
 
-  function readCfg() { return STORAGE_CONFIG; }
-  function showErr(msg) { el.err.style.display = msg ? "block" : "none"; el.err.textContent = msg || ""; }
+    <!-- KPIs -->
+    <section class="kpi-hero">
+      <div class="card hero live"><div class="label">Currently active</div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
+      <div class="card hero highlight"><div class="label">Post-9h users</div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
+      <div class="card hero"><div class="label">Sessions</div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
+    </section>
+    <section class="kpi-secondary">
+      <div class="card ok"><div class="label">VMs</div><div id="kpiVMs" class="value">0</div></div>
+      <div class="card muted"><div class="label">Pre-9h only</div><div id="kpiPre9h" class="value">0</div><div class="pct-sub">within limit</div></div>
+      <div class="card warn"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div></div>
+      <div class="card danger"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+      <div class="card danger"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div></div>
+    </section>
 
-  function b64ToBytes(b) { const r = atob(b.trim()); const a = new Uint8Array(r.length); for (let i=0;i<r.length;i++) a[i]=r.charCodeAt(i); return a; }
-  function fmtTime(d) { return d.toISOString().replace(/\.\d{3}Z$/,"Z"); }
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="usage">Usage Distribution</button>
+      <button class="tab" data-tab="vms">Per-VM</button>
+      <button class="tab" data-tab="leaderboard">Leaderboard</button>
+    </div>
 
-  async function makeSas(cfg) {
-    const ver = "2020-10-02", p = "r", s = "t", rt = "sco", proto = "https";
-    const st = fmtTime(new Date(Date.now()-5*60*1000));
-    const se = fmtTime(new Date(Date.now()+Math.max(1,cfg.dashboardSasHours||24)*3600000));
-    const str = [cfg.storageAccountName,p,s,rt,st,se,"",proto,ver,""].join("\n");
-    const ck = await crypto.subtle.importKey("raw",b64ToBytes(cfg.accountKey),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-    const sig = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC",ck,new TextEncoder().encode(str)))));
-    return new URLSearchParams({sv:ver,ss:s,srt:rt,sp:p,st,se,spr:proto,sig}).toString();
-  }
+    <div id="tab-overview" class="tab-content active">
+      <div class="chart-grid">
+        <div class="panel chart-box"><h3>Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
+        <div class="panel chart-box"><h3>User status breakdown</h3><canvas id="chartStatus"></canvas></div>
+      </div>
+    </div>
 
-  async function fetchData(cfg) {
-    if (!cfg.storageAccountName || !cfg.accountKey) throw new Error("Storage account and key required.");
-    const sas = await makeSas(cfg);
-    const rows = []; let cont = null;
-    do {
-      const url = new URL(`https://${cfg.storageAccountName}.table.core.windows.net/${encodeURIComponent(cfg.tableName)}()`);
-      for (const [k,v] of new URLSearchParams(sas).entries()) url.searchParams.set(k,v);
-      url.searchParams.set("$select","PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,ExtendedActiveMinutes,ExtendedSegmentCount,IsCurrentlyActive,Status,LastHeartbeatUtc");
-      if (cont?.npk) url.searchParams.set("NextPartitionKey",cont.npk);
-      if (cont?.nrk) url.searchParams.set("NextRowKey",cont.nrk);
-      const r = await fetch(url.toString(),{headers:{Accept:"application/json;odata=nometadata"}});
-      if (!r.ok) throw new Error(`Table query failed: ${r.status} ${await r.text()}`);
-      const b = await r.json(); rows.push(...(b.value||[]));
-      cont = { npk: r.headers.get("x-ms-continuation-NextPartitionKey"), nrk: r.headers.get("x-ms-continuation-NextRowKey") };
-    } while (cont.npk||cont.nrk);
-    return rows;
-  }
+    <div id="tab-usage" class="tab-content">
+      <div class="chart-grid">
+        <div class="panel chart-box"><h3>Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
+        <div class="panel chart-box"><h3>Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
+        <div class="panel chart-box" style="grid-column:1/-1"><h3>Post-9h usage timeline (per session)</h3><canvas id="chartTimeline"></canvas></div>
+      </div>
+    </div>
 
-  function fmtMin(m) { if (!m || m<=0) return "0m"; const h = Math.floor(m/60); const mm = Math.round(m%60); return h>0?`${h}h ${mm}m`:`${mm}m`; }
+    <div id="tab-vms" class="tab-content">
+      <div class="chart-grid">
+        <div class="panel chart-box" style="grid-column:1/-1"><h3>Extended usage per VM (top 25)</h3><canvas id="chartPerVM"></canvas></div>
+      </div>
+    </div>
 
-  function destroyCharts() { Object.values(charts).forEach(c => c.destroy()); charts = {}; }
+    <div id="tab-leaderboard" class="tab-content">
+      <section class="panel">
+        <h3 style="margin-top:0">Top post-9h users by extended usage</h3>
+        <div style="overflow-x:auto">
+          <table id="topUsersTable" class="top-table">
+            <thead><tr>
+              <th>#</th>
+              <th data-sort="vm">VM</th>
+              <th data-sort="user">User</th>
+              <th data-sort="ext">Ext. usage</th>
+              <th data-sort="seg">Segments</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="started">Started</th>
+            </tr></thead>
+            <tbody id="topUsersBody"><tr><td colspan="7" class="empty">No data.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
 
-  function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+  <script>
+    const STORAGE_CONFIG = {
+      storageAccountName: "copilots47e37hf4wbpe",
+      tableName: "LabSessions",
+      accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
+      refreshSeconds: 15
+    };
+    const FILTER_KEY = "faiadGraphsFilters_v1";
 
-  function renderAll(rows) {
-    const vms = [...new Set(rows.map(r => r.VMName || r.PartitionKey).filter(Boolean))].sort();
-    const deletedRows = rows.filter(r => r.Status === 'VMDeleted');
-    const deletedVMs = [...new Set(deletedRows.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
-    const activeRows = rows.filter(r => r.Status !== 'VMDeleted');
-    const extended = activeRows.filter(r => r.ExtendedStarted === true);
-    const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true);
-    const hardStopped = activeRows.filter(r => r.ShutdownReason === "HardLimitReached");
-    const pre9h = activeRows.filter(r => r.ExtendedStarted !== true);
-    const extMins = extended.map(r => Number(r.ExtendedActiveMinutes)||0);
-    const avgExt = extMins.length ? extMins.reduce((a,b)=>a+b,0)/extMins.length : 0;
-    const maxExt = extMins.length ? Math.max(...extMins) : 0;
-    const maxExtRow = extended.find(r => (Number(r.ExtendedActiveMinutes)||0) === maxExt);
-    const pct = rows.length ? Math.round(extended.length / rows.length * 100) : 0;
+    const state = {
+      rows: [],
+      filters: { search: "", month: "all" },
+      paused: false,
+      refreshTimer: null,
+      lastLoadedAt: null,
+      activeTab: "overview",
+      leaderSort: { col: "ext", dir: "desc" },
+    };
+    try { Object.assign(state.filters, JSON.parse(localStorage.getItem(FILTER_KEY) || "{}")); } catch {}
 
-    document.getElementById("kpiTotalUsers").textContent = rows.length;
-    document.getElementById("kpiVMs").textContent = vms.length;
-    document.getElementById("kpiPost8h").textContent = extended.length;
-    document.getElementById("kpiPost8hPct").textContent = `${pct}% of total`;
-    document.getElementById("kpiActiveNow").textContent = extActiveNow.length;
-    document.getElementById("kpiAvgExt").textContent = fmtMin(avgExt);
-    document.getElementById("kpiMaxExt").textContent = fmtMin(maxExt);
-    document.getElementById("kpiMaxExtUser").textContent = maxExtRow ? (maxExtRow.VMName || maxExtRow.PartitionKey || "single session") : "single session";
-    document.getElementById("kpiPre8h").textContent = pre9h.length;
-    document.getElementById("kpiHardStop").textContent = hardStopped.length;
+    let charts = {};
+    const $ = id => document.getElementById(id);
+    const escHtml = v => String(v).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
+    function showError(msg) { $("errorBox").style.display = msg ? "block" : "none"; $("errorBox").textContent = msg || ""; }
+    function fmtMin(m) { if (!m || m <= 0) return "0m"; const h = Math.floor(m / 60); const mm = Math.round(m % 60); return h > 0 ? `${h}h ${mm}m` : `${mm}m`; }
+    function parseDate(v) { if (!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d; }
 
-    destroyCharts();
+    function b64ToBytes(b64) { const r = atob(b64.trim()); const a = new Uint8Array(r.length); for (let i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+    function fmtSasTime(d) { return d.toISOString().replace(/\.\d{3}Z$/, "Z"); }
 
-    // Post-9h vs Within Limit ratio doughnut (large, prominent)
-    charts.ratio = new Chart(document.getElementById("chartRatio"), {
-      type: "doughnut",
-      data: {
-        labels: [`Post-9h (${extended.length})`, `Within limit (${pre9h.length})`],
-        datasets: [{ data: [extended.length, pre9h.length], backgroundColor: ["#f59e0b","#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }]
-      },
-      options: {
-        responsive: true, cutout: "60%",
-        plugins: {
-          legend: { position: "bottom", labels: { font: { size: 13, weight: "bold" } } },
-          tooltip: { callbacks: { label: function(ctx) { const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return `${ctx.label}: ${ctx.raw} (${t?Math.round(ctx.raw/t*100):0}%)`; } } }
+    async function makeAccountSas(cfg) {
+      const ver = "2020-10-02";
+      const start = fmtSasTime(new Date(Date.now() - 5 * 60 * 1000));
+      const expiry = fmtSasTime(new Date(Date.now() + 24 * 3600 * 1000));
+      const stringToSign = [cfg.storageAccountName, "r", "t", "sco", start, expiry, "", "https", ver, ""].join("\n");
+      const key = await crypto.subtle.importKey("raw", b64ToBytes(cfg.accountKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      const sig = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(stringToSign)))));
+      return new URLSearchParams({ sv: ver, ss: "t", srt: "sco", sp: "r", st: start, se: expiry, spr: "https", sig }).toString();
+    }
+
+    async function fetchRows() {
+      const sas = await makeAccountSas(STORAGE_CONFIG);
+      const out = [];
+      let cont = null;
+      do {
+        const url = new URL(`https://${STORAGE_CONFIG.storageAccountName}.table.core.windows.net/${encodeURIComponent(STORAGE_CONFIG.tableName)}()`);
+        new URLSearchParams(sas).forEach((v, k) => url.searchParams.set(k, v));
+        url.searchParams.set("$select", "PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,ExtendedActiveMinutes,ExtendedSegmentCount,IsCurrentlyActive,Status,LastHeartbeatUtc");
+        if (cont?.npk) url.searchParams.set("NextPartitionKey", cont.npk);
+        if (cont?.nrk) url.searchParams.set("NextRowKey", cont.nrk);
+        const r = await fetch(url.toString(), { headers: { Accept: "application/json;odata=nometadata" } });
+        if (!r.ok) throw new Error(`Table query failed: ${r.status} ${await r.text()}`);
+        const b = await r.json();
+        out.push(...(b.value || []));
+        cont = { npk: r.headers.get("x-ms-continuation-NextPartitionKey"), nrk: r.headers.get("x-ms-continuation-NextRowKey") };
+      } while (cont.npk || cont.nrk);
+      return out;
+    }
+
+    // ---------- Month filter helpers ----------
+    function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
+    function monthLabel(key) { const [y, m] = key.split("-"); return new Date(+y, +m - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" }); }
+    function buildMonthOptions() {
+      const sel = $("monthFilter");
+      const months = new Set();
+      state.rows.forEach(r => { const d = parseDate(r.UserStartTime); if (d) months.add(monthKey(d)); });
+      const sorted = [...months].sort().reverse();
+      const current = state.filters.month;
+      [...sel.options].forEach(o => { if (!["all", "this", "last"].includes(o.value)) sel.removeChild(o); });
+      sorted.forEach(key => {
+        const o = document.createElement("option");
+        o.value = key; o.textContent = monthLabel(key);
+        sel.appendChild(o);
+      });
+      sel.value = current && [...sel.options].some(o => o.value === current) ? current : "all";
+    }
+    function rowMatchesMonth(row) {
+      const f = state.filters.month;
+      if (!f || f === "all") return true;
+      const d = parseDate(row.UserStartTime);
+      if (!d) return false;
+      const now = new Date();
+      if (f === "this") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      if (f === "last") {
+        const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
+      }
+      return monthKey(d) === f;
+    }
+
+    function applyFilters() {
+      const q = (state.filters.search || "").toLowerCase().trim();
+      return state.rows.filter(r => {
+        if (!rowMatchesMonth(r)) return false;
+        if (q) {
+          const blob = `${r.VMName || ""} ${r.PartitionKey || ""} ${r.UserName || ""}`.toLowerCase();
+          if (!blob.includes(q)) return false;
         }
-      },
-      plugins: [{
-        id: "centerText",
-        afterDraw(chart) {
-          const {ctx, width, height} = chart;
-          ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.font = "bold 2.2rem 'Segoe UI', system-ui, sans-serif";
-          ctx.fillStyle = "#b54708";
-          ctx.fillText(`${pct}%`, width/2, height/2 - 8);
-          ctx.font = "600 0.85rem 'Segoe UI', system-ui, sans-serif";
-          ctx.fillStyle = "#667085";
-          ctx.fillText("post-9h", width/2, height/2 + 18);
-          ctx.restore();
-        }
-      }]
-    });
+        return true;
+      });
+    }
 
-    // Status breakdown doughnut
-    const extIdleCount = extended.filter(r => r.IsCurrentlyActive !== true && r.ShutdownReason !== "HardLimitReached").length;
-    const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length, "VM Deleted": deletedRows.length };
-    charts.status = new Chart(document.getElementById("chartStatus"), {
-      type: "doughnut",
-      data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981","#f59e0b","#94a3b8","#ef4444","#d1d5db"], borderWidth: 2, borderColor: "#fff" }] },
-      options: { responsive: true, plugins: { legend: { position: "bottom" } } }
-    });
+    function destroyCharts() { Object.values(charts).forEach(c => c?.destroy?.()); charts = {}; }
 
-    // Extended usage histogram (bar) — improved buckets
-    const buckets = {"0m":0, "1-10m":0, "10-30m":0, "30m-1h":0, "1-2h":0, "2h+":0};
-    extMins.forEach(m => {
-      if (m <= 0) buckets["0m"]++;
-      else if (m <= 10) buckets["1-10m"]++;
-      else if (m <= 30) buckets["10-30m"]++;
-      else if (m <= 60) buckets["30m-1h"]++;
-      else if (m <= 120) buckets["1-2h"]++;
-      else buckets["2h+"]++;
-    });
-    charts.extUsage = new Chart(document.getElementById("chartExtUsage"), {
-      type: "bar",
-      data: { labels: Object.keys(buckets), datasets: [{ label: "Users", data: Object.values(buckets), backgroundColor: ["#d1d5db","#93c5fd","#60a5fa","#f59e0b","#f97316","#ef4444"], borderRadius: 6 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: "Number of users" } } } }
-    });
+    function renderLiveBar() {
+      const all = state.rows;
+      const activeNow = all.filter(r => r.Status !== "VMDeleted" && r.IsCurrentlyActive === true).length;
+      const extended = all.filter(r => r.Status !== "VMDeleted" && r.ExtendedStarted === true).length;
+      const vms = new Set(all.map(r => r.VMName || r.PartitionKey).filter(Boolean)).size;
+      $("liveActive").textContent = activeNow;
+      $("liveExt").textContent = extended;
+      $("liveTotal").textContent = all.length;
+      $("liveVMs").textContent = vms;
+      $("liveDot").className = activeNow > 0 ? "dot" : "dot idle";
+      document.title = activeNow > 0 ? `(${activeNow}) FAIAD Analytics` : "FAIAD Analytics";
+    }
 
-    // Segments per user histogram
-    const segBuckets = {"0":0,"1":0,"2":0,"3":0,"4":0,"5+":0};
-    extended.forEach(r => {
-      const sc = Number(r.ExtendedSegmentCount)||0;
-      if (sc<=0) segBuckets["0"]++;
-      else if (sc<=4) segBuckets[String(sc)]++;
-      else segBuckets["5+"]++;
-    });
-    charts.segments = new Chart(document.getElementById("chartSegments"), {
-      type: "bar",
-      data: { labels: Object.keys(segBuckets), datasets: [{ label: "Users", data: Object.values(segBuckets), backgroundColor: "#0f766e", borderRadius: 6 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
+    function renderChips() {
+      const chips = [];
+      const f = state.filters;
+      if (f.search) chips.push({ key: "search", label: `Search: "${escHtml(f.search)}"` });
+      if (f.month && f.month !== "all") {
+        const lbl = f.month === "this" ? "This month" : f.month === "last" ? "Last month" : monthLabel(f.month);
+        chips.push({ key: "month", label: `Month: ${lbl}` });
+      }
+      $("filterChips").innerHTML = chips.length
+        ? chips.map(c => `<span class="chip">${c.label}<button data-clear="${c.key}">×</button></span>`).join("") + `<button class="chip" data-clear="all" style="background:#fee2e2;color:#b91c1c;border:0;cursor:pointer">Clear all</button>`
+        : "";
+    }
 
-    // Extended usage per VM (horizontal bar)
-    const vmUsage = {};
-    extended.forEach(r => {
-      const vm = r.VMName || r.PartitionKey || "?";
-      vmUsage[vm] = (vmUsage[vm]||0) + (Number(r.ExtendedActiveMinutes)||0);
-    });
-    const sortedVMs = Object.entries(vmUsage).sort((a,b) => b[1]-a[1]).slice(0,20);
-    charts.perVM = new Chart(document.getElementById("chartPerVM"), {
-      type: "bar",
-      data: { labels: sortedVMs.map(v=>v[0]), datasets: [{ label: "Ext. minutes", data: sortedVMs.map(v=>Math.round(v[1])), backgroundColor: "#7c3aed", borderRadius: 6 }] },
-      options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-    });
+    function renderAll() {
+      const filtered = applyFilters();
+      const vms = [...new Set(filtered.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
+      const deletedRows = filtered.filter(r => r.Status === "VMDeleted");
+      const activeRows = filtered.filter(r => r.Status !== "VMDeleted");
+      const extended = activeRows.filter(r => r.ExtendedStarted === true);
+      const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true);
+      const hardStopped = activeRows.filter(r => r.ShutdownReason === "HardLimitReached");
+      const pre9h = activeRows.filter(r => r.ExtendedStarted !== true);
+      const extMins = extended.map(r => Number(r.ExtendedActiveMinutes) || 0);
+      const avgExt = extMins.length ? extMins.reduce((a, b) => a + b, 0) / extMins.length : 0;
+      const maxExt = extMins.length ? Math.max(...extMins) : 0;
+      const maxRow = extended.find(r => (Number(r.ExtendedActiveMinutes) || 0) === maxExt);
+      const pct = filtered.length ? Math.round(extended.length / filtered.length * 100) : 0;
 
-    // Post-9h usage timeline (scatter plot — each user as a dot)
-    const timelineData = extended.map(r => {
-      const start = new Date(r.UserStartTime);
-      return { x: Number(r.ExtendedActiveMinutes)||0, y: r.VMName || r.PartitionKey || "?", start };
-    }).sort((a,b) => b.x - a.x);
-    const tlLabels = timelineData.map(d => d.y);
-    const tlData = timelineData.map(d => d.x);
-    charts.timeline = new Chart(document.getElementById("chartTimeline"), {
-      type: "bar",
-      data: { labels: tlLabels, datasets: [{ label: "Ext. minutes", data: tlData, backgroundColor: tlData.map(m => m > 120 ? "#ef4444" : m > 60 ? "#f59e0b" : "#10b981"), borderRadius: 6 }] },
-      options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, title: { display: true, text: "Extended minutes" } } } }
-    });
+      $("kpiActiveNow").textContent = extActiveNow.length;
+      $("kpiExtended").textContent = extended.length;
+      $("kpiExtendedPct").textContent = `${pct}% of filtered`;
+      $("kpiTotal").textContent = filtered.length;
+      $("kpiTotalSub").textContent = filtered.length === state.rows.length ? "across all VMs" : `of ${state.rows.length} total (filtered)`;
+      $("kpiVMs").textContent = vms.length;
+      $("kpiPre9h").textContent = pre9h.length;
+      $("kpiAvgExt").textContent = fmtMin(avgExt);
+      $("kpiMaxExt").textContent = fmtMin(maxExt);
+      $("kpiMaxExtUser").textContent = maxRow ? (maxRow.VMName || maxRow.PartitionKey || "—") : "—";
+      $("kpiHardStop").textContent = hardStopped.length;
 
-    // Top extended users table
-    const topUsers = [...extended].sort((a,b) => (Number(b.ExtendedActiveMinutes)||0) - (Number(a.ExtendedActiveMinutes)||0)).slice(0, 15);
-    const tbody = document.getElementById("topUsersBody");
-    if (topUsers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1rem">No post-9h users yet.</td></tr>';
-    } else {
-      tbody.innerHTML = topUsers.map((r, i) => {
-        const mins = Number(r.ExtendedActiveMinutes)||0;
-        const segs = Number(r.ExtendedSegmentCount)||0;
+      destroyCharts();
+
+      // Ratio doughnut with center text
+      charts.ratio = new Chart($("chartRatio"), {
+        type: "doughnut",
+        data: { labels: [`Post-9h (${extended.length})`, `Within limit (${pre9h.length})`], datasets: [{ data: [extended.length, pre9h.length], backgroundColor: ["#f59e0b", "#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }] },
+        options: { responsive: true, cutout: "60%", plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label(ctx) { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.raw} (${t ? Math.round(ctx.raw / t * 100) : 0}%)`; } } } } },
+        plugins: [{
+          id: "centerText",
+          afterDraw(chart) {
+            const { ctx, width, height } = chart;
+            ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.font = "bold 2.2rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#b54708";
+            ctx.fillText(`${pct}%`, width / 2, height / 2 - 8);
+            ctx.font = "600 0.85rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#667085";
+            ctx.fillText("post-9h", width / 2, height / 2 + 18);
+            ctx.restore();
+          }
+        }]
+      });
+
+      const extIdleCount = extended.filter(r => r.IsCurrentlyActive !== true && r.ShutdownReason !== "HardLimitReached").length;
+      const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length, "VM Deleted": deletedRows.length };
+      charts.status = new Chart($("chartStatus"), {
+        type: "doughnut",
+        data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981", "#f59e0b", "#94a3b8", "#ef4444", "#d1d5db"], borderWidth: 2, borderColor: "#fff" }] },
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+      });
+
+      const buckets = { "0m": 0, "1-10m": 0, "10-30m": 0, "30m-1h": 0, "1-2h": 0, "2h+": 0 };
+      extMins.forEach(m => {
+        if (m <= 0) buckets["0m"]++;
+        else if (m <= 10) buckets["1-10m"]++;
+        else if (m <= 30) buckets["10-30m"]++;
+        else if (m <= 60) buckets["30m-1h"]++;
+        else if (m <= 120) buckets["1-2h"]++;
+        else buckets["2h+"]++;
+      });
+      charts.extUsage = new Chart($("chartExtUsage"), {
+        type: "bar",
+        data: { labels: Object.keys(buckets), datasets: [{ label: "Users", data: Object.values(buckets), backgroundColor: ["#d1d5db", "#93c5fd", "#60a5fa", "#f59e0b", "#f97316", "#ef4444"], borderRadius: 6 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: "Users" } } } }
+      });
+
+      const segBuckets = { "0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5+": 0 };
+      extended.forEach(r => {
+        const sc = Number(r.ExtendedSegmentCount) || 0;
+        if (sc <= 0) segBuckets["0"]++;
+        else if (sc <= 4) segBuckets[String(sc)]++;
+        else segBuckets["5+"]++;
+      });
+      charts.segments = new Chart($("chartSegments"), {
+        type: "bar",
+        data: { labels: Object.keys(segBuckets), datasets: [{ label: "Users", data: Object.values(segBuckets), backgroundColor: "#0f766e", borderRadius: 6 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+
+      const vmUsage = {};
+      extended.forEach(r => {
+        const vm = r.VMName || r.PartitionKey || "?";
+        vmUsage[vm] = (vmUsage[vm] || 0) + (Number(r.ExtendedActiveMinutes) || 0);
+      });
+      const sortedVMs = Object.entries(vmUsage).sort((a, b) => b[1] - a[1]).slice(0, 25);
+      charts.perVM = new Chart($("chartPerVM"), {
+        type: "bar",
+        data: { labels: sortedVMs.map(v => v[0]), datasets: [{ label: "Ext. minutes", data: sortedVMs.map(v => Math.round(v[1])), backgroundColor: "#7c3aed", borderRadius: 6 }] },
+        options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+      });
+
+      const tlData = [...extended].sort((a, b) => (Number(b.ExtendedActiveMinutes) || 0) - (Number(a.ExtendedActiveMinutes) || 0));
+      const tlLabels = tlData.map(r => `${r.VMName || r.PartitionKey || "?"} (${r.UserName || "—"})`);
+      const tlValues = tlData.map(r => Number(r.ExtendedActiveMinutes) || 0);
+      charts.timeline = new Chart($("chartTimeline"), {
+        type: "bar",
+        data: { labels: tlLabels, datasets: [{ label: "Ext. minutes", data: tlValues, backgroundColor: tlValues.map(m => m > 120 ? "#ef4444" : m > 60 ? "#f59e0b" : "#10b981"), borderRadius: 6 }] },
+        options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, title: { display: true, text: "Extended minutes" } } } }
+      });
+
+      // Leaderboard
+      renderLeaderboard(extended, maxExt);
+    }
+
+    function renderLeaderboard(extended, maxExt) {
+      const tbody = $("topUsersBody");
+      const sortKey = state.leaderSort.col;
+      const dir = state.leaderSort.dir === "asc" ? 1 : -1;
+      const get = {
+        vm: r => (r.VMName || r.PartitionKey || "").toLowerCase(),
+        user: r => (r.UserName || "").toLowerCase(),
+        ext: r => Number(r.ExtendedActiveMinutes) || 0,
+        seg: r => Number(r.ExtendedSegmentCount) || 0,
+        status: r => r.IsCurrentlyActive ? 1 : (r.ShutdownReason === "HardLimitReached" ? 3 : 2),
+        started: r => parseDate(r.UserStartTime)?.getTime() || 0,
+      }[sortKey] || (r => 0);
+      const sorted = [...extended].sort((a, b) => {
+        const av = get(a), bv = get(b);
+        return av < bv ? -dir : av > bv ? dir : 0;
+      }).slice(0, 50);
+
+      // sort arrows in header
+      document.querySelectorAll("#topUsersTable th[data-sort]").forEach(th => {
+        const isS = th.dataset.sort === sortKey;
+        const arrow = isS ? `<span style="color:var(--accent);margin-left:0.25rem">${state.leaderSort.dir === "asc" ? "▲" : "▼"}</span>` : "";
+        const baseTxt = th.dataset.label || th.textContent.replace(/[▲▼]/g, "").trim();
+        if (!th.dataset.label) th.dataset.label = baseTxt;
+        th.innerHTML = baseTxt + arrow;
+      });
+
+      if (!sorted.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No post-9h users yet.</td></tr>`; return; }
+      tbody.innerHTML = sorted.map((r, i) => {
+        const mins = Number(r.ExtendedActiveMinutes) || 0;
+        const segs = Number(r.ExtendedSegmentCount) || 0;
         const barPct = maxExt > 0 ? Math.round(mins / maxExt * 100) : 0;
         const barColor = mins > 120 ? "#ef4444" : mins > 60 ? "#f59e0b" : "#10b981";
-        const statusCls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : (r.Status === "VMDeleted" ? "deleted" : "idle"));
-        const statusTxt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : (r.Status === "VMDeleted" ? "VM Deleted" : "Idle"));
+        const cls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : (r.Status === "VMDeleted" ? "deleted" : "idle"));
+        const txt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : (r.Status === "VMDeleted" ? "VM Deleted" : "Idle"));
+        const dot = r.IsCurrentlyActive ? '<span class="b-dot"></span>' : '';
         const started = r.UserStartTime ? new Date(r.UserStartTime).toLocaleString() : "-";
         return `<tr>
-          <td>${i+1}</td>
+          <td>${i + 1}</td>
           <td><strong>${escHtml(r.VMName || r.PartitionKey || "-")}</strong></td>
           <td>${escHtml(r.UserName || "-")}</td>
           <td class="bar-cell"><div class="usage-bar">${fmtMin(mins)}<div class="usage-bar-track"><div class="usage-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div></div></td>
           <td>${segs}</td>
-          <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
+          <td><span class="status-badge ${cls}">${dot}${txt}</span></td>
           <td>${started}</td>
         </tr>`;
       }).join("");
     }
-  }
 
-  async function refresh() {
-    const cfg = readCfg();
-    showErr("");
-    el.status.textContent = "Loading...";
-    try {
-      const rows = await fetchData(cfg);
-      renderAll(rows);
-      el.status.textContent = `Loaded ${rows.length} row(s) at ${new Date().toLocaleTimeString()}`;
-    } catch(e) {
-      showErr(e.message||String(e));
-      el.status.textContent = "Load failed.";
-    } finally {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(refresh, Math.max(5, STORAGE_CONFIG.refreshSeconds||15)*1000);
+    let countdownStart = Date.now();
+    function tickCountdown() {
+      const totalMs = Math.max(5, STORAGE_CONFIG.refreshSeconds) * 1000;
+      const elapsed = Date.now() - countdownStart;
+      const pct = Math.min(1, elapsed / totalMs);
+      const circ = 2 * Math.PI * 10;
+      $("refreshProgress").setAttribute("stroke-dashoffset", String(circ * pct));
     }
-  }
 
-  refresh();
-</script>
+    async function refresh(manual = false) {
+      if (state.paused && !manual) return scheduleRefresh();
+      showError("");
+      $("liveStatus").textContent = "Loading…";
+      try {
+        state.rows = await fetchRows();
+        state.lastLoadedAt = new Date();
+        buildMonthOptions();
+        renderLiveBar();
+        renderChips();
+        renderAll();
+        $("liveStatus").textContent = `Loaded ${state.rows.length} rows · ${state.lastLoadedAt.toLocaleTimeString()}`;
+      } catch (e) {
+        showError(e.message || String(e));
+        $("liveStatus").textContent = "Load failed";
+      } finally {
+        countdownStart = Date.now();
+        scheduleRefresh();
+      }
+    }
+
+    function scheduleRefresh() {
+      if (state.refreshTimer) clearTimeout(state.refreshTimer);
+      const seconds = Math.max(5, Number(STORAGE_CONFIG.refreshSeconds) || 15);
+      if (!state.paused) state.refreshTimer = setTimeout(refresh, seconds * 1000);
+    }
+
+    function saveFilters() { try { localStorage.setItem(FILTER_KEY, JSON.stringify(state.filters)); } catch {} }
+
+    function init() {
+      $("searchBox").value = state.filters.search || "";
+      $("monthFilter").value = state.filters.month || "all";
+
+      let sTimer;
+      $("searchBox").addEventListener("input", e => {
+        clearTimeout(sTimer);
+        sTimer = setTimeout(() => { state.filters.search = e.target.value; saveFilters(); renderChips(); renderAll(); }, 200);
+      });
+      $("monthFilter").addEventListener("change", e => { state.filters.month = e.target.value; saveFilters(); renderChips(); renderAll(); });
+
+      $("pauseBtn").addEventListener("click", () => {
+        state.paused = !state.paused;
+        $("pauseBtn").textContent = state.paused ? "▶ Resume" : "⏸ Pause";
+        $("pauseBtn").classList.toggle("paused", state.paused);
+        if (!state.paused) refresh(true);
+      });
+      $("refreshBtn").addEventListener("click", () => refresh(true));
+
+      $("filterChips").addEventListener("click", e => {
+        const btn = e.target.closest("[data-clear]");
+        if (!btn) return;
+        const k = btn.dataset.clear;
+        if (k === "all") { state.filters = { search: "", month: "all" }; $("searchBox").value = ""; $("monthFilter").value = "all"; }
+        else if (k === "search") { state.filters.search = ""; $("searchBox").value = ""; }
+        else if (k === "month") { state.filters.month = "all"; $("monthFilter").value = "all"; }
+        saveFilters(); renderChips(); renderAll();
+      });
+
+      // Tabs
+      document.querySelectorAll(".tab").forEach(t => {
+        t.addEventListener("click", () => {
+          state.activeTab = t.dataset.tab;
+          document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+          document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === `tab-${state.activeTab}`));
+          // Force chart resize when switched in
+          requestAnimationFrame(() => Object.values(charts).forEach(c => c?.resize?.()));
+        });
+      });
+
+      // Leaderboard sort
+      document.querySelectorAll("#topUsersTable th[data-sort]").forEach(th => {
+        th.addEventListener("click", () => {
+          const c = th.dataset.sort;
+          if (state.leaderSort.col === c) state.leaderSort.dir = state.leaderSort.dir === "asc" ? "desc" : "asc";
+          else { state.leaderSort.col = c; state.leaderSort.dir = "desc"; }
+          renderAll();
+        });
+      });
+
+      setInterval(tickCountdown, 250);
+      refresh(true);
+    }
+
+    init();
+  </script>
 </body>
 </html>
