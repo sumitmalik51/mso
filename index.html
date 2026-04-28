@@ -263,6 +263,42 @@
       padding: 1.5rem;
       text-align: center;
     }
+
+    .section-header {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section-header td {
+      background: #f1f5f9;
+      font-weight: 800;
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+      padding: 0.7rem 0.75rem;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .section-header .chevron {
+      display: inline-block;
+      transition: transform 0.2s ease;
+      margin-right: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .section-header.collapsed .chevron {
+      transform: rotate(-90deg);
+    }
+
+    .section-body.collapsed {
+      display: none;
+    }
+
+    .section-count {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-left: 0.5rem;
+    }
   </style>
   <script src="config.js"></script>
 </head>
@@ -558,7 +594,16 @@
         return;
       }
 
-      elements.sessionsBody.innerHTML = rows.map(row => {
+      // Split into 3 groups: Extended (post-9h), Pre-9h, Deleted
+      const extGroup = rows.filter(r => r.Status !== 'VMDeleted' && r.ExtendedStarted === true);
+      const preGroup = rows.filter(r => r.Status !== 'VMDeleted' && r.ExtendedStarted !== true);
+      const delGroup = deletedRows;
+
+      // Track collapsed state across refreshes
+      if (!window._sectionState) window._sectionState = { extended: false, pre9h: false, deleted: true };
+      const ss = window._sectionState;
+
+      function renderRow(row) {
         const status = statusFor(row);
         const userStart = parseDate(row.UserStartTime);
         const lastActivity = parseDate(row.LastActivityTime);
@@ -581,7 +626,38 @@
             <td>${escapeHtml(row.UserName || "-")}</td>
             <td class="small">${hbAge}</td>
           </tr>`;
-      }).join("");
+      }
+
+      function sectionHtml(key, label, color, group) {
+        const isCollapsed = ss[key];
+        return `<tr class="section-header ${isCollapsed ? 'collapsed' : ''}" data-section="${key}">
+            <td colspan="10" style="border-left:4px solid ${color}">
+              <span class="chevron">&#9660;</span>${label}<span class="section-count">(${group.length})</span>
+            </td>
+          </tr>` +
+          `<tr class="section-body-anchor" data-section="${key}"></tr>` +
+          (group.length
+            ? group.map(r => `<tr class="section-row ${isCollapsed ? 'collapsed' : ''}" data-section="${key}" ${isCollapsed ? 'style="display:none"' : ''}>${renderRow(r).replace(/^\s*<tr>/, '').replace(/<\/tr>\s*$/, '')}</tr>`).join('')
+            : `<tr class="section-row ${isCollapsed ? 'collapsed' : ''}" data-section="${key}" ${isCollapsed ? 'style="display:none"' : ''}><td colspan="10" class="empty">None</td></tr>`);
+      }
+
+      elements.sessionsBody.innerHTML =
+        sectionHtml('extended', 'Extended Usage (Post-9h)', '#f59e0b', extGroup) +
+        sectionHtml('pre9h', 'Pre-9h Sessions', '#10b981', preGroup) +
+        sectionHtml('deleted', 'Deleted VMs', '#9ca3af', delGroup);
+
+      // Attach toggle listeners
+      elements.sessionsBody.querySelectorAll('.section-header').forEach(hdr => {
+        hdr.addEventListener('click', () => {
+          const key = hdr.dataset.section;
+          ss[key] = !ss[key];
+          hdr.classList.toggle('collapsed', ss[key]);
+          elements.sessionsBody.querySelectorAll(`.section-row[data-section="${key}"]`).forEach(row => {
+            row.style.display = ss[key] ? 'none' : '';
+            row.classList.toggle('collapsed', ss[key]);
+          });
+        });
+      });
     }
 
     function escapeHtml(value) {
