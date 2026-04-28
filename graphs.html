@@ -112,6 +112,7 @@
     .status-badge.idle { background: #eef2ff; color: #3730a3; }
     .status-badge.stopped { background: #fef3f2; color: #b42318; }
     .status-badge.deleted { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+    .card .label .help { color: #cbd5e1; cursor: help; font-weight: 700; margin-left: 0.25rem; font-size: 0.85em; }
     .empty { color: var(--muted); padding: 1rem; text-align: center; font-style: italic; }
     .error { display: none; background: #fef3f2; border: 1px solid #fecdca; color: var(--danger); border-radius: 0.7rem; padding: 0.7rem 0.9rem; white-space: pre-wrap; font-size: 0.85rem; margin-bottom: 0.75rem; }
   </style>
@@ -119,16 +120,16 @@
 </head>
 <body>
   <div class="live-bar">
-    <span class="stat"><span id="liveDot" class="dot"></span><strong id="liveActive">0</strong> active now</span>
+    <span class="stat" title="Post-9h users with keyboard/mouse activity right now"><span id="liveDot" class="dot"></span><strong id="liveActive">0</strong> active now</span>
     <span class="sep">|</span>
-    <span class="stat"><strong id="liveExt">0</strong> post-9h</span>
+    <span class="stat" title="Sessions that have crossed the 9-hour threshold"><strong id="liveExt">0</strong> post-9h</span>
     <span class="sep">|</span>
-    <span class="stat"><strong id="liveTotal">0</strong> sessions</span>
+    <span class="stat" title="Total tracked session rows"><strong id="liveTotal">0</strong> sessions</span>
     <span class="sep">|</span>
-    <span class="stat"><strong id="liveVMs">0</strong> VMs</span>
+    <span class="stat" title="Distinct lab VMs reporting data"><strong id="liveVMs">0</strong> VMs</span>
     <div class="right">
-      <span id="liveStatus">Loading…</span>
-      <svg class="refresh-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle id="refreshProgress" class="progress" cx="12" cy="12" r="10" stroke-dasharray="62.83" stroke-dashoffset="0"/></svg>
+      <span id="liveStatus" title="Last fetch result and timestamp">Loading…</span>
+      <svg class="refresh-ring" viewBox="0 0 24 24" title="Time until next auto-refresh"><circle cx="12" cy="12" r="10"/><circle id="refreshProgress" class="progress" cx="12" cy="12" r="10" stroke-dasharray="62.83" stroke-dashoffset="0"/></svg>
     </div>
   </div>
 
@@ -143,38 +144,38 @@
 
     <!-- Filter toolbar -->
     <div class="toolbar">
-      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" />
-      <select id="monthFilter" title="Filter by start month">
+      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" title="Filter charts and leaderboard by VM name or user name (case-insensitive)" />
+      <select id="monthFilter" title="Filter by session start month">
         <option value="all">All time</option>
         <option value="this">This month</option>
         <option value="last">Last month</option>
       </select>
       <span class="spacer"></span>
-      <button id="pauseBtn">⏸ Pause</button>
-      <button id="refreshBtn" class="primary">↻ Refresh</button>
+      <button id="pauseBtn" title="Pause auto-refresh (keeps current view stable while you analyse)">⏸ Pause</button>
+      <button id="refreshBtn" class="primary" title="Refresh data now">↻ Refresh</button>
     </div>
     <div id="filterChips" class="filter-chips"></div>
 
     <!-- KPIs -->
     <section class="kpi-hero">
-      <div class="card hero live"><div class="label">Currently active</div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
-      <div class="card hero highlight"><div class="label">Post-9h users</div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
-      <div class="card hero"><div class="label">Sessions</div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
+      <div class="card hero live" title="Post-9h users with active keyboard/mouse input right now"><div class="label">Currently active <span class="help" title="Sessions where IsCurrentlyActive=true and ExtendedStarted=true">ⓘ</span></div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
+      <div class="card hero highlight" title="Users who continued past the 9-hour threshold"><div class="label">Post-9h users <span class="help" title="Count of sessions that crossed the 9-hour mark and entered extended monitoring">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
+      <div class="card hero" title="Total tracked FAIAD sessions in the current filter"><div class="label">Sessions <span class="help" title="All session rows after applying search and month filters">ⓘ</span></div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
     </section>
     <section class="kpi-secondary">
-      <div class="card ok"><div class="label">VMs</div><div id="kpiVMs" class="value">0</div></div>
-      <div class="card muted"><div class="label">Pre-9h only</div><div id="kpiPre9h" class="value">0</div><div class="pct-sub">within limit</div></div>
-      <div class="card warn"><div class="label">Avg ext. usage</div><div id="kpiAvgExt" class="value">0m</div></div>
-      <div class="card danger"><div class="label">Max ext. usage</div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
-      <div class="card danger"><div class="label">Hard stopped</div><div id="kpiHardStop" class="value">0</div></div>
+      <div class="card ok" title="Distinct lab VMs in the current filtered set"><div class="label">VMs <span class="help" title="Unique VM names appearing in the filtered data">ⓘ</span></div><div id="kpiVMs" class="value">0</div></div>
+      <div class="card muted" title="Users still within their 9-hour daily limit"><div class="label">Pre-9h only <span class="help" title="Sessions that have NOT yet crossed the 9-hour threshold">ⓘ</span></div><div id="kpiPre9h" class="value">0</div><div class="pct-sub">within limit</div></div>
+      <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across post-9h sessions">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div></div>
+      <div class="card danger" title="Highest extended (post-9h) active minutes in a single session"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+      <div class="card danger" title="Sessions terminated by the tracker after exceeding the hard 12-hour limit"><div class="label">Hard stopped <span class="help" title="Sessions where ShutdownReason=HardLimitReached — the tracker forced a shutdown">ⓘ</span></div><div id="kpiHardStop" class="value">0</div></div>
     </section>
 
     <!-- Tabs -->
     <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="overview">Overview</button>
-      <button class="tab" data-tab="usage">Usage Distribution</button>
-      <button class="tab" data-tab="vms">Per-VM</button>
-      <button class="tab" data-tab="leaderboard">Leaderboard</button>
+      <button class="tab active" data-tab="overview" title="High-level ratio and status breakdown">Overview</button>
+      <button class="tab" data-tab="usage" title="How long and how many segments post-9h users accumulate">Usage Distribution</button>
+      <button class="tab" data-tab="vms" title="Total extended minutes per VM (top 25)">Per-VM</button>
+      <button class="tab" data-tab="leaderboard" title="Ranked list of top post-9h users by extended usage">Leaderboard</button>
     </div>
 
     <div id="tab-overview" class="tab-content active">
@@ -204,13 +205,13 @@
         <div style="overflow-x:auto">
           <table id="topUsersTable" class="top-table">
             <thead><tr>
-              <th>#</th>
-              <th data-sort="vm">VM</th>
-              <th data-sort="user">User</th>
-              <th data-sort="ext">Ext. usage</th>
-              <th data-sort="seg">Segments</th>
-              <th data-sort="status">Status</th>
-              <th data-sort="started">Started</th>
+              <th title="Rank by current sort">#</th>
+              <th data-sort="vm" title="Click to sort by VM name">VM</th>
+              <th data-sort="user" title="Click to sort by user name">User</th>
+              <th data-sort="ext" title="Click to sort by extended (post-9h) active minutes">Ext. usage</th>
+              <th data-sort="seg" title="Click to sort by number of post-9h activity segments">Segments</th>
+              <th data-sort="status" title="Click to sort by current status (Active / Idle / Hard stopped / Deleted)">Status</th>
+              <th data-sort="started" title="Click to sort by session start time">Session started</th>
             </tr></thead>
             <tbody id="topUsersBody"><tr><td colspan="7" class="empty">No data.</td></tr></tbody>
           </table>
