@@ -159,14 +159,14 @@
     <!-- KPIs -->
     <section class="kpi-hero">
       <div class="card hero live" title="Post-9h users with active keyboard/mouse input right now"><div class="label">Currently active <span class="help" title="Sessions where IsCurrentlyActive=true and ExtendedStarted=true">ⓘ</span></div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
-      <div class="card hero highlight" title="Users who continued past the 9-hour threshold"><div class="label">Post-9h users <span class="help" title="Count of sessions that crossed the 9-hour mark and entered extended monitoring">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
+      <div class="card hero highlight" title="All users (including those whose VM was later deleted) who continued past the 9-hour threshold"><div class="label">Post-9h users <span class="help" title="Historical count of sessions that crossed the 9-hour mark — includes deleted-VM sessions so we can see total post-9h usage over time">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
       <div class="card hero" title="Total tracked FAIAD sessions in the current filter"><div class="label">Sessions <span class="help" title="All session rows after applying search and month filters">ⓘ</span></div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
     </section>
     <section class="kpi-secondary">
       <div class="card ok" title="Distinct lab VMs in the current filtered set"><div class="label">VMs <span class="help" title="Unique VM names appearing in the filtered data">ⓘ</span></div><div id="kpiVMs" class="value">0</div></div>
       <div class="card muted" title="Users still within their 9-hour daily limit"><div class="label">Pre-9h only <span class="help" title="Sessions that have NOT yet crossed the 9-hour threshold">ⓘ</span></div><div id="kpiPre9h" class="value">0</div><div class="pct-sub">within limit</div></div>
       <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across post-9h sessions">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div></div>
-      <div class="card danger" title="Highest extended (post-9h) active minutes in a single session"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+      <div class="card danger" title="Highest extended (post-9h) active minutes ever recorded in a single session (includes deleted-VM history)"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM (may be deleted)">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
       <div class="card danger" title="Sessions terminated by the tracker after exceeding the hard 12-hour limit"><div class="label">Hard stopped <span class="help" title="Sessions where ShutdownReason=HardLimitReached — the tracker forced a shutdown">ⓘ</span></div><div id="kpiHardStop" class="value">0</div></div>
     </section>
 
@@ -327,7 +327,7 @@
     function renderLiveBar() {
       const all = state.rows;
       const activeNow = all.filter(r => r.Status !== "VMDeleted" && r.IsCurrentlyActive === true).length;
-      const extended = all.filter(r => r.Status !== "VMDeleted" && r.ExtendedStarted === true).length;
+      const extended = all.filter(r => r.ExtendedStarted === true).length;
       const vms = new Set(all.map(r => r.VMName || r.PartitionKey).filter(Boolean)).size;
       $("liveActive").textContent = activeNow;
       $("liveExt").textContent = extended;
@@ -354,11 +354,12 @@
       const filtered = applyFilters();
       const vms = [...new Set(filtered.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
       const deletedRows = filtered.filter(r => r.Status === "VMDeleted");
-      const activeRows = filtered.filter(r => r.Status !== "VMDeleted");
-      const extended = activeRows.filter(r => r.ExtendedStarted === true);
-      const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true);
-      const hardStopped = activeRows.filter(r => r.ShutdownReason === "HardLimitReached");
-      const pre9h = activeRows.filter(r => r.ExtendedStarted !== true);
+      // Historical analytics include deleted-VM sessions — their post-9h minutes are real and we want to count them.
+      // Only "currently active right now" excludes deleted VMs (a removed VM can't have a live user).
+      const extended = filtered.filter(r => r.ExtendedStarted === true);
+      const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true && r.Status !== "VMDeleted");
+      const hardStopped = filtered.filter(r => r.ShutdownReason === "HardLimitReached");
+      const pre9h = filtered.filter(r => r.ExtendedStarted !== true && r.Status !== "VMDeleted");
       const extMins = extended.map(r => Number(r.ExtendedActiveMinutes) || 0);
       const avgExt = extMins.length ? extMins.reduce((a, b) => a + b, 0) / extMins.length : 0;
       const maxExt = extMins.length ? Math.max(...extMins) : 0;
