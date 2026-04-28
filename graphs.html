@@ -44,6 +44,7 @@
     .status-badge.active { background:#fef3c7; color:#92400e; }
     .status-badge.idle { background:#eef2ff; color:#3730a3; }
     .status-badge.stopped { background:#fef3f2; color:#b42318; }
+    .status-badge.deleted { background:#f3f4f6; color:#6b7280; text-decoration:line-through; }
     .status-bar { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
     .status-line { color:var(--muted); font-size:0.85rem; }
     .error { display:none; background:#fef3f2; border:1px solid #fecdca; color:var(--danger); border-radius:0.9rem; padding:0.8rem 1rem; margin-top:0.75rem; white-space:pre-wrap; }
@@ -158,10 +159,13 @@
 
   function renderAll(rows) {
     const vms = [...new Set(rows.map(r => r.VMName || r.PartitionKey).filter(Boolean))].sort();
-    const extended = rows.filter(r => r.ExtendedStarted === true);
+    const deletedRows = rows.filter(r => r.Status === 'VMDeleted');
+    const deletedVMs = [...new Set(deletedRows.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
+    const activeRows = rows.filter(r => r.Status !== 'VMDeleted');
+    const extended = activeRows.filter(r => r.ExtendedStarted === true);
     const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true);
-    const hardStopped = rows.filter(r => r.ShutdownReason === "HardLimitReached");
-    const pre9h = rows.filter(r => r.ExtendedStarted !== true);
+    const hardStopped = activeRows.filter(r => r.ShutdownReason === "HardLimitReached");
+    const pre9h = activeRows.filter(r => r.ExtendedStarted !== true);
     const extMins = extended.map(r => Number(r.ExtendedActiveMinutes)||0);
     const avgExt = extMins.length ? extMins.reduce((a,b)=>a+b,0)/extMins.length : 0;
     const maxExt = extMins.length ? Math.max(...extMins) : 0;
@@ -213,10 +217,10 @@
 
     // Status breakdown doughnut
     const extIdleCount = extended.filter(r => r.IsCurrentlyActive !== true && r.ShutdownReason !== "HardLimitReached").length;
-    const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length };
+    const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length, "VM Deleted": deletedRows.length };
     charts.status = new Chart(document.getElementById("chartStatus"), {
       type: "doughnut",
-      data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981","#f59e0b","#94a3b8","#ef4444"], borderWidth: 2, borderColor: "#fff" }] },
+      data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981","#f59e0b","#94a3b8","#ef4444","#d1d5db"], borderWidth: 2, borderColor: "#fff" }] },
       options: { responsive: true, plugins: { legend: { position: "bottom" } } }
     });
 
@@ -287,8 +291,8 @@
         const segs = Number(r.ExtendedSegmentCount)||0;
         const barPct = maxExt > 0 ? Math.round(mins / maxExt * 100) : 0;
         const barColor = mins > 120 ? "#ef4444" : mins > 60 ? "#f59e0b" : "#10b981";
-        const statusCls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : "idle");
-        const statusTxt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : "Idle");
+        const statusCls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : (r.Status === "VMDeleted" ? "deleted" : "idle"));
+        const statusTxt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : (r.Status === "VMDeleted" ? "VM Deleted" : "Idle"));
         const started = r.UserStartTime ? new Date(r.UserStartTime).toLocaleString() : "-";
         return `<tr>
           <td>${i+1}</td>
