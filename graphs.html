@@ -180,7 +180,7 @@
 
     <div id="tab-overview" class="tab-content active">
       <div class="chart-grid">
-        <div class="panel chart-box"><h3>Post-9h vs Within Limit</h3><canvas id="chartRatio"></canvas></div>
+        <div class="panel chart-box"><h3>Users who actually used post-9h vs total</h3><canvas id="chartRatio"></canvas></div>
         <div class="panel chart-box"><h3>User status breakdown</h3><canvas id="chartStatus"></canvas></div>
       </div>
     </div>
@@ -366,6 +366,19 @@
       const maxRow = extended.find(r => (Number(r.ExtendedActiveMinutes) || 0) === maxExt);
       const pct = filtered.length ? Math.round(extended.length / filtered.length * 100) : 0;
 
+      // Distinct users — total vs those who actually used the lab past the 9-hour mark
+      // (had real keyboard/mouse activity post-9h, i.e. ExtendedActiveMinutes > 0).
+      const userKey = r => (r.UserName && r.UserName.trim()) || r.VMName || r.PartitionKey || "";
+      const allUsers = new Set(filtered.map(userKey).filter(Boolean));
+      const extendedUsers = new Set(
+        extended
+          .filter(r => (Number(r.ExtendedActiveMinutes) || 0) > 0)
+          .map(userKey)
+          .filter(Boolean)
+      );
+      const nonExtendedUsers = Math.max(0, allUsers.size - extendedUsers.size);
+      const userPct = allUsers.size ? Math.round(extendedUsers.size / allUsers.size * 100) : 0;
+
       $("kpiActiveNow").textContent = extActiveNow.length;
       $("kpiExtended").textContent = extended.length;
       $("kpiExtendedPct").textContent = `${pct}% of filtered`;
@@ -380,20 +393,20 @@
 
       destroyCharts();
 
-      // Ratio doughnut with center text
+      // Ratio doughnut with center text — distinct users: actually used post-9h vs not
       charts.ratio = new Chart($("chartRatio"), {
         type: "doughnut",
-        data: { labels: [`Post-9h (${extended.length})`, `Within limit (${pre9h.length})`], datasets: [{ data: [extended.length, pre9h.length], backgroundColor: ["#f59e0b", "#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }] },
-        options: { responsive: true, cutout: "60%", plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label(ctx) { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.raw} (${t ? Math.round(ctx.raw / t * 100) : 0}%)`; } } } } },
+        data: { labels: [`Used post-9h (${extendedUsers.size})`, `Within limit (${nonExtendedUsers})`], datasets: [{ data: [extendedUsers.size, nonExtendedUsers], backgroundColor: ["#f59e0b", "#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }] },
+        options: { responsive: true, cutout: "60%", plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label(ctx) { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.raw} user${ctx.raw === 1 ? "" : "s"} (${t ? Math.round(ctx.raw / t * 100) : 0}%)`; } } } } },
         plugins: [{
           id: "centerText",
           afterDraw(chart) {
             const { ctx, width, height } = chart;
             ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.font = "bold 2.2rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#b54708";
-            ctx.fillText(`${pct}%`, width / 2, height / 2 - 8);
+            ctx.fillText(`${userPct}%`, width / 2, height / 2 - 8);
             ctx.font = "600 0.85rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#667085";
-            ctx.fillText("post-9h", width / 2, height / 2 + 18);
+            ctx.fillText(`${extendedUsers.size}/${allUsers.size} users`, width / 2, height / 2 + 18);
             ctx.restore();
           }
         }]
