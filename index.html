@@ -305,10 +305,10 @@
         <div id="kpiActiveNow" class="value">0</div>
         <div class="pct-sub">in an open extended segment</div>
       </div>
-      <div class="card hero highlight" title="All users (including those whose VM was later deleted) who continued past the 9-hour threshold">
-        <div class="label">Post-9h users <span class="help" title="Sessions that crossed the 9-hour mark — includes deleted-VM history so total post-9h usage is preserved">ⓘ</span></div>
+      <div class="card hero highlight" title="Distinct users who actually had keyboard/mouse activity past the 9-hour threshold (ExtendedActiveMinutes > 0)">
+        <div class="label">Post-9h users <span class="help" title="Unique user count (by UserName) for users who recorded real activity past the 9-hour mark — i.e. ExtendedActiveMinutes > 0. Users who only passively crossed 9h with no input are NOT counted. Includes deleted-VM history.">ⓘ</span></div>
         <div id="kpiExtended" class="value">0</div>
-        <div id="kpiExtendedPct" class="pct-sub">0% of total</div>
+        <div id="kpiExtendedPct" class="pct-sub">0 users</div>
       </div>
       <div class="card hero" title="Total tracked FAIAD sessions">
         <div class="label">Sessions <span class="help" title="All session rows across all VMs (after filter)">ⓘ</span></div>
@@ -602,9 +602,22 @@
       const maxExt = extMinutes.length ? Math.max(...extMinutes) : 0;
       const maxRow = extended.find(r => (Number(r.ExtendedActiveMinutes) || 0) === maxExt);
 
+      // Distinct users who ACTUALLY used the VM past the 9-hour mark
+      // (had real keyboard/mouse activity post-9h, not just passively crossed the threshold).
+      const userKey = r => (r.UserName && r.UserName.trim()) || r.VMName || r.PartitionKey || "";
+      const allUsers = new Set(filtered.map(userKey).filter(Boolean));
+      const extendedUsers = new Set(
+        extended
+          .filter(r => (Number(r.ExtendedActiveMinutes) || 0) > 0)
+          .map(userKey)
+          .filter(Boolean)
+      );
+
       $("kpiActiveNow").textContent = activeNow.length;
-      $("kpiExtended").textContent = extended.length;
-      $("kpiExtendedPct").textContent = filtered.length ? `${Math.round(extended.length / filtered.length * 100)}% of filtered` : "0%";
+      $("kpiExtended").textContent = extendedUsers.size;
+      $("kpiExtendedPct").textContent = allUsers.size
+        ? `${extendedUsers.size} of ${allUsers.size} users actually used post-9h`
+        : "0 users";
       $("kpiSessions").textContent = filtered.length;
       $("kpiSessionsSub").textContent = filtered.length === all.length ? "across all VMs" : `of ${all.length} total (filtered)`;
       $("kpiVMs").textContent = filteredVms.length;
@@ -932,4 +945,3 @@
   </script>
 </body>
 </html>
-
