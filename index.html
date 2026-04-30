@@ -3,250 +3,450 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FAIAD Analytics</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E" />
+  <title>FAIAD Activity Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3EF%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
-      --bg: #f5f7fb; --panel: #ffffff; --ink: #172033; --muted: #667085;
-      --line: #d9e0ec; --accent: #2563eb; --ok: #027a48; --warn: #b54708;
-      --danger: #b42318; --shadow: 0 16px 45px rgba(15,23,42,0.09);
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e0ec;
+      --accent: #2563eb;
+      --accent-2: #0f766e;
+      --danger: #b42318;
+      --warn: #b54708;
+      --ok: #027a48;
+      --shadow: 0 16px 45px rgba(15, 23, 42, 0.09);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: radial-gradient(circle at top left,#e0ecff 0,transparent 36rem), var(--bg); color: var(--ink); }
 
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top left, #e0ecff 0, transparent 36rem), var(--bg); color: var(--ink); }
+
+    /* Sticky live status bar */
     .live-bar {
-      position: sticky; top: 0; z-index: 50;
-      background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(8px);
       border-bottom: 1px solid var(--line);
       padding: 0.55rem clamp(1rem, 4vw, 3rem);
-      display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;
-      font-size: 0.88rem; font-weight: 600;
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      font-weight: 600;
     }
-    .live-bar .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #ef4444; margin-right: 0.4rem; vertical-align: middle; animation: pulse 1.6s ease-in-out infinite; }
+    .live-bar .dot {
+      display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%;
+      background: #ef4444; margin-right: 0.4rem; vertical-align: middle;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
     .live-bar .dot.idle { background: #94a3b8; animation: none; }
+    .live-bar .stat { color: var(--ink); }
     .live-bar .stat strong { color: var(--accent); font-size: 1rem; }
     .live-bar .sep { color: var(--line); }
-    .live-bar .right { margin-left: auto; display:flex; gap: 0.75rem; align-items:center; color: var(--muted); font-weight: 500; font-size: 0.82rem; }
+    .live-bar .right { margin-left: auto; display:flex; gap: 0.75rem; align-items:center; color: var(--muted); font-weight:500; font-size:0.82rem; }
+
     @keyframes pulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); transform: scale(1); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); transform: scale(1); }
       50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); transform: scale(1.15); }
     }
+
+    /* Refresh progress ring */
     .refresh-ring { width: 1.1rem; height: 1.1rem; }
     .refresh-ring circle { fill: none; stroke: var(--line); stroke-width: 2; }
     .refresh-ring .progress { stroke: var(--accent); stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; transition: stroke-dashoffset 1s linear; }
 
-    header { padding: 1.5rem clamp(1rem,4vw,3rem) 0.5rem; }
+    header { padding: 1.5rem clamp(1rem, 4vw, 3rem) 0.5rem; }
     h1 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.4rem); letter-spacing: -0.03em; }
-    .subtitle { margin-top: 0.4rem; color: var(--muted); line-height: 1.55; font-size: 0.92rem; }
+    .subtitle { margin-top: 0.4rem; color: var(--muted); max-width: 70rem; line-height: 1.55; font-size: 0.92rem; }
     .nav { display: flex; gap: 1rem; margin-top: 0.6rem; }
-    .nav a { color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.9rem; }
+    .nav a { color: var(--accent); font-weight: 700; text-decoration: none; font-size: 0.9rem; }
     .nav a:hover { text-decoration: underline; }
 
-    main { padding: 0.75rem clamp(1rem,4vw,3rem) 3rem; }
-    .panel { background: rgba(255,255,255,0.96); border: 1px solid rgba(217,224,236,0.9); border-radius: 1rem; box-shadow: var(--shadow); padding: 1.1rem; margin-bottom: 1rem; }
+    main { padding: 0.75rem clamp(1rem, 4vw, 3rem) 3rem; }
 
-    /* KPIs */
-    .kpi-hero { display: grid; grid-template-columns: repeat(auto-fit,minmax(15rem,1fr)); gap: 1rem; margin-bottom: 0.75rem; }
-    .kpi-secondary { display: grid; grid-template-columns: repeat(auto-fit,minmax(10rem,1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-    .card { background: linear-gradient(180deg,#fff 0%,#f8fbff 100%); border: 1px solid var(--line); border-radius: 0.85rem; padding: 1rem 1.1rem; position: relative; overflow: hidden; }
-    .card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent); }
+    .panel {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(217, 224, 236, 0.9);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+      padding: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Two-tier KPIs */
+    .kpi-hero {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .kpi-secondary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+      border: 1px solid var(--line);
+      border-radius: 0.85rem;
+      padding: 1rem 1.1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent);
+    }
     .card.warn::before { background: #f59e0b; }
     .card.danger::before { background: #ef4444; }
     .card.ok::before { background: #10b981; }
     .card.muted::before { background: #94a3b8; }
-    .card .label { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .card .label { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; display:flex; align-items:center; gap:0.35rem; }
+    .card .label .help { color: #cbd5e1; cursor: help; font-weight: 700; }
     .card .value { margin-top: 0.35rem; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
     .card.hero .value { font-size: 2.4rem; }
     .card .pct-sub { margin-top: 0.2rem; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
-    .card.live { background: linear-gradient(180deg,#fee2e2 0%,#fef2f2 100%); border-color: #fecaca; }
+    .card.live { background: linear-gradient(180deg, #fee2e2 0%, #fef2f2 100%); border-color: #fecaca; }
     .card.live::before { background: #ef4444; }
     .card.live .value { color: var(--danger); }
-    .card.highlight { background: linear-gradient(180deg,#fef3c7 0%,#fffbeb 100%); border-color: #fde68a; }
+    .card.live .label .live-dot { display:inline-block; width:0.5rem; height:0.5rem; border-radius:50%; background:#ef4444; margin-right:0.3rem; animation: pulse 1.6s ease-in-out infinite; }
+    .card.highlight { background: linear-gradient(180deg, #fef3c7 0%, #fffbeb 100%); border-color: #fde68a; }
     .card.highlight::before { background: #f59e0b; }
     .card.highlight .value { color: var(--warn); }
 
-    /* Toolbar */
-    .toolbar { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; padding: 0.85rem 1rem; background: #fff; border: 1px solid var(--line); border-radius: 0.85rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
-    .toolbar select, .toolbar input[type="search"] { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.88rem; background: #fff; color: var(--ink); outline: none; min-width: 8rem; }
-    .toolbar select:focus, .toolbar input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    /* Filter toolbar */
+    .toolbar {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 0.85rem 1rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 0.85rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+    }
+    .toolbar input[type="search"], .toolbar select {
+      border: 1px solid var(--line);
+      border-radius: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.88rem;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+      min-width: 8rem;
+    }
+    .toolbar input[type="search"]:focus, .toolbar select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
     .toolbar input[type="search"] { min-width: 14rem; flex: 1; }
-    .toolbar button { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.85rem; background: #fff; color: var(--ink); font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+    .toolbar .label-inline { color: var(--muted); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .toolbar button {
+      border: 1px solid var(--line);
+      border-radius: 0.6rem;
+      padding: 0.5rem 0.85rem;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
     .toolbar button:hover { background: #f8fafc; border-color: var(--accent); }
     .toolbar button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
     .toolbar button.primary:hover { background: #1d4ed8; }
     .toolbar button.paused { background: #fffaeb; border-color: #f59e0b; color: #92400e; }
     .toolbar .spacer { flex: 1; }
-    .toolbar .right { margin-left: auto; color: var(--muted); font-size: 0.82rem; }
+    .toolbar .right { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; color: var(--muted); font-size: 0.82rem; }
 
+    /* Active filter chips */
     .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem; }
-    .chip { display: inline-flex; align-items: center; gap: 0.35rem; background: #eef2ff; color: #3730a3; border-radius: 999px; padding: 0.25rem 0.6rem; font-size: 0.78rem; font-weight: 700; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: #eef2ff; color: #3730a3; border-radius: 999px;
+      padding: 0.25rem 0.6rem; font-size: 0.78rem; font-weight: 700;
+    }
     .chip button { background: none; border: 0; color: inherit; cursor: pointer; font-weight: 800; padding: 0; line-height: 1; font-size: 1rem; }
 
-    /* Tabs */
-    .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
-    .tab { background: transparent; border: 0; padding: 0.65rem 1rem; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; font-size: 0.92rem; transition: all 0.15s; }
-    .tab:hover { color: var(--ink); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    /* VM strip */
+    .vm-strip { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; max-height: 13rem; overflow-y: auto; padding-right: 0.25rem; }
+    .vm-strip.collapsed { max-height: 4.5rem; overflow: hidden; }
+    .vm-pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.35rem 0.65rem;
+      background: #fff;
+      font-weight: 700;
+      color: #344054;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .vm-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .vm-pill.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .vm-pill.deleted { opacity: 0.55; text-decoration: line-through; border-color: #d1d5db; }
+    .vm-pill.active::before { content: "🟢 "; }
+    .vm-pill.extended::before { content: "🟠 "; }
+    .vm-toggle { background: transparent; border: 0; color: var(--accent); cursor: pointer; font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.6rem; }
 
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 60rem; }
+    th, td { text-align: left; padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th {
+      color: #475467; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+      background: #f8fafc; position: sticky; top: 0; z-index: 1; font-weight: 800;
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    th:hover { background: #eef2ff; color: var(--accent); }
+    th .sort-arrow { color: var(--accent); margin-left: 0.25rem; font-size: 0.7rem; }
+    td { font-size: 0.9rem; }
+    td .muted { color: var(--muted); font-size: 0.78rem; display:block; margin-top:0.1rem; }
+    tr.session-row { cursor: pointer; transition: background 0.1s; }
+    tr.session-row:hover { background: #f8fafc; }
+    tr.detail-row td { background: #fafbff; padding: 1rem; border-bottom: 2px solid var(--line); }
+    .seg-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+    .seg-pill { background: #fff; border: 1px solid var(--line); border-radius: 0.4rem; padding: 0.25rem 0.5rem; font-size: 0.76rem; color: #475467; font-family: ui-monospace, SFMono-Regular, monospace; }
 
-    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(24rem,1fr)); gap: 1.25rem; }
-    .chart-box { min-height: 18rem; }
-    .chart-box h3 { margin: 0 0 0.6rem; font-size: 1rem; }
-    canvas { width: 100% !important; max-height: 22rem; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      border-radius: 999px;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .badge .b-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; }
+    .badge.ok { background: #ecfdf3; color: var(--ok); }
+    .badge.ok .b-dot { background: var(--ok); }
+    .badge.warn { background: #fffaeb; color: var(--warn); }
+    .badge.warn .b-dot { background: #f59e0b; }
+    .badge.danger { background: #fef3f2; color: var(--danger); }
+    .badge.danger .b-dot { background: var(--danger); }
+    .badge.neutral { background: #eef2ff; color: #3730a3; }
+    .badge.neutral .b-dot { background: #6366f1; }
+    .badge.deleted { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
+    .badge.live .b-dot { animation: pulse 1.6s ease-in-out infinite; }
 
-    .top-table { width: 100%; border-collapse: collapse; }
-    .top-table th, .top-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 0.88rem; }
-    .top-table th { background: #f8fafc; color: #475467; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; user-select: none; }
-    .top-table th:hover { background: #eef2ff; color: var(--accent); }
-    .top-table .bar-cell { min-width: 10rem; }
-    .usage-bar { display: flex; align-items: center; gap: 0.4rem; }
-    .usage-bar-track { flex: 1; height: 0.5rem; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .usage-bar-wrap { display: flex; align-items: center; gap: 0.5rem; min-width: 7rem; }
+    .usage-bar { flex: 1; height: 0.4rem; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
     .usage-bar-fill { height: 100%; border-radius: 999px; }
-    .status-badge { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.74rem; font-weight: 800; }
-    .status-badge .b-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; }
-    .status-badge.active { background: #fffaeb; color: #92400e; }
-    .status-badge.active .b-dot { background: #f59e0b; animation: pulse 1.6s ease-in-out infinite; }
-    .status-badge.idle { background: #eef2ff; color: #3730a3; }
-    .status-badge.stopped { background: #fef3f2; color: #b42318; }
-    .status-badge.deleted { background: #f3f4f6; color: #6b7280; text-decoration: line-through; }
-    .card .label .help { color: #cbd5e1; cursor: help; font-weight: 700; margin-left: 0.25rem; font-size: 0.85em; }
-    .empty { color: var(--muted); padding: 1rem; text-align: center; font-style: italic; }
-    .error { display: none; background: #fef3f2; border: 1px solid #fecdca; color: var(--danger); border-radius: 0.7rem; padding: 0.7rem 0.9rem; white-space: pre-wrap; font-size: 0.85rem; margin-bottom: 0.75rem; }
+
+    /* Section headers */
+    .section-header { cursor: pointer; user-select: none; }
+    .section-header td {
+      background: #f1f5f9; font-weight: 800; font-size: 0.85rem; letter-spacing: 0.02em;
+      padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--line);
+    }
+    .section-header .chevron { display: inline-block; transition: transform 0.2s ease; margin-right: 0.45rem; font-size: 0.7rem; }
+    .section-header.collapsed .chevron { transform: rotate(-90deg); }
+    .section-count { font-weight: 600; color: var(--muted); font-size: 0.8rem; margin-left: 0.4rem; }
+
+    .empty { color: var(--muted); padding: 1.25rem; text-align: center; font-style: italic; }
+    .error {
+      display: none; background: #fef3f2; border: 1px solid #fecdca; color: var(--danger);
+      border-radius: 0.7rem; padding: 0.7rem 0.9rem; white-space: pre-wrap; font-size: 0.85rem;
+    }
+
+    /* Skeleton loading */
+    .skeleton-row td { height: 2.5rem; }
+    .skeleton-bar { height: 0.9rem; background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%); background-size: 200% 100%; border-radius: 0.4rem; animation: shimmer 1.4s ease infinite; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .toolbar-section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
+    .toolbar-section-title h2 { margin: 0; font-size: 1.05rem; }
+    .toolbar-section-title .meta { color: var(--muted); font-size: 0.82rem; }
+
+    /* Hide controls panel by default for clean look */
+    @media (max-width: 720px) {
+      .live-bar { font-size: 0.78rem; padding: 0.45rem 0.75rem; gap: 0.75rem; }
+      .live-bar .right { display: none; }
+      .toolbar { padding: 0.7rem; }
+      .toolbar input[type="search"] { min-width: 100%; flex-basis: 100%; }
+    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- Sticky live status bar -->
   <div class="live-bar">
-    <span class="stat" title="Post-9h users with keyboard/mouse activity right now"><span id="liveDot" class="dot"></span><strong id="liveActive">0</strong> active now</span>
+    <span class="stat"><span id="liveDot" class="dot"></span><strong id="liveActive">0</strong> active now</span>
     <span class="sep">|</span>
-    <span class="stat" title="Sessions that have crossed the 9-hour threshold"><strong id="liveExt">0</strong> post-9h</span>
+    <span class="stat"><strong id="liveExt">0</strong> post-9h</span>
     <span class="sep">|</span>
-    <span class="stat" title="Total tracked session rows"><strong id="liveTotal">0</strong> sessions</span>
+    <span class="stat"><strong id="liveTotal">0</strong> sessions</span>
     <span class="sep">|</span>
-    <span class="stat" title="Distinct lab VMs reporting data"><strong id="liveVMs">0</strong> VMs</span>
+    <span class="stat"><strong id="liveVMs">0</strong> VMs</span>
     <div class="right">
-      <span id="liveStatus" title="Last fetch result and timestamp">Loading…</span>
-      <svg class="refresh-ring" viewBox="0 0 24 24" title="Time until next auto-refresh"><circle cx="12" cy="12" r="10"/><circle id="refreshProgress" class="progress" cx="12" cy="12" r="10" stroke-dasharray="62.83" stroke-dashoffset="0"/></svg>
+      <span id="liveStatus">Loading…</span>
+      <svg class="refresh-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle id="refreshProgress" class="progress" cx="12" cy="12" r="10" stroke-dasharray="62.83" stroke-dashoffset="0"/></svg>
     </div>
   </div>
 
   <header>
-    <h1>FAIAD Analytics</h1>
-    <p class="subtitle">Charts, KPIs and rankings for FAIAD post-9h extended usage across all lab VMs.</p>
-    <div class="nav"><a href="index.html">← Session Dashboard</a></div>
+    <h1>FAIAD Activity Dashboard</h1>
+    <p class="subtitle">Real-time user activity for FAIAD lab VMs. Tracks keyboard/mouse input and records post-9h extended usage in segments.</p>
+    <div class="nav"><a href="graphs.html">📊 Analytics &amp; Graphs →</a></div>
   </header>
 
   <main>
-    <div id="errorBox" class="error"></div>
+    <!-- Tier 1: hero KPIs -->
+    <section class="kpi-hero">
+      <div class="card hero live" title="Users with keyboard/mouse activity right now (in an open post-9h segment)">
+        <div class="label"><span class="live-dot"></span>Currently active <span class="help" title="Post-9h users with active keyboard/mouse input within the last few minutes">ⓘ</span></div>
+        <div id="kpiActiveNow" class="value">0</div>
+        <div class="pct-sub">in an open extended segment</div>
+      </div>
+      <div class="card hero highlight" title="Distinct users who actually had keyboard/mouse activity past the 9-hour threshold (ExtendedActiveMinutes > 0)">
+        <div class="label">Post-9h users <span class="help" title="Unique user count (by UserName) for users who recorded real activity past the 9-hour mark — i.e. ExtendedActiveMinutes > 0. Users who only passively crossed 9h with no input are NOT counted. Includes deleted-VM history.">ⓘ</span></div>
+        <div id="kpiExtended" class="value">0</div>
+        <div id="kpiExtendedPct" class="pct-sub">0 users</div>
+      </div>
+      <div class="card hero" title="Total tracked FAIAD sessions">
+        <div class="label">Sessions <span class="help" title="All session rows across all VMs (after filter)">ⓘ</span></div>
+        <div id="kpiSessions" class="value">0</div>
+        <div id="kpiSessionsSub" class="pct-sub">across all VMs</div>
+      </div>
+    </section>
+
+    <!-- Tier 2: secondary KPIs -->
+    <section class="kpi-secondary">
+      <div class="card ok" title="Distinct lab VMs that have reported at least one session"><div class="label">VMs <span class="help" title="Count of unique VM names that appear in the current filtered data set">ⓘ</span></div><div id="kpiVMs" class="value">0</div><div class="pct-sub">distinct machines</div></div>
+      <div class="card muted" title="VMs that no longer exist in Azure but still have historical session rows"><div class="label">Deleted VMs <span class="help" title="VMs flagged as VMDeleted by the cleanup runbook — historical sessions kept for audit">ⓘ</span></div><div id="kpiDeleted" class="value">0</div><div id="kpiDeletedPct" class="pct-sub">0% of VMs</div></div>
+      <div class="card warn" title="Average extended (post-9h) active minutes across all post-9h users (including deleted-VM history)"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across all post-9h sessions, including those on VMs that were later deleted">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div><div class="pct-sub">post-9h users</div></div>
+      <div class="card danger" title="Highest extended (post-9h) active minutes ever recorded in a single session (includes deleted-VM history)"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM (may be deleted)">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
+    </section>
 
     <!-- Filter toolbar -->
-    <div class="toolbar">
-      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" title="Filter charts and leaderboard by VM name or user name (case-insensitive)" />
-      <select id="monthFilter" title="Filter by session start month">
+    <div class="toolbar" role="toolbar" aria-label="Filters">
+      <input id="searchBox" type="search" placeholder="🔍 Search VM or user…" autocomplete="off" title="Type to filter sessions by VM name or user name (case-insensitive)" />
+      <select id="statusFilter" title="Filter by status">
+        <option value="all">All statuses</option>
+        <option value="active">Active (post-9h)</option>
+        <option value="extended">Extended (post-9h)</option>
+        <option value="pre9h">Pre-9h</option>
+        <option value="hardstop">Hard stopped</option>
+        <option value="deleted">VM Deleted</option>
+      </select>
+      <select id="monthFilter" title="Filter by start month">
         <option value="all">All time</option>
         <option value="this">This month</option>
         <option value="last">Last month</option>
+        <!-- dynamic months inserted here -->
       </select>
       <span class="spacer"></span>
-      <button id="pauseBtn" title="Pause auto-refresh (keeps current view stable while you analyse)">⏸ Pause</button>
-      <button id="refreshBtn" class="primary" title="Refresh data now">↻ Refresh</button>
+      <button id="pauseBtn" title="Pause auto-refresh (keeps view stable while you investigate)">⏸ Pause</button>
+      <button id="refreshBtn" class="primary" title="Refresh now">↻ Refresh</button>
+      <span id="lastUpdated" class="right">—</span>
     </div>
     <div id="filterChips" class="filter-chips"></div>
 
-    <!-- KPIs -->
-    <section class="kpi-hero">
-      <div class="card hero live" title="Post-9h users with active keyboard/mouse input right now"><div class="label">Currently active <span class="help" title="Sessions where IsCurrentlyActive=true and ExtendedStarted=true">ⓘ</span></div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
-      <div class="card hero highlight" title="Distinct users who actually had keyboard/mouse activity past the 9-hour threshold (ExtendedActiveMinutes > 0)"><div class="label">Post-9h users <span class="help" title="Unique user count (by UserName) for users who recorded real activity past the 9-hour mark — includes deleted-VM history. Users who only passively crossed 9h with no input are NOT counted.">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0 users</div></div>
-      <div class="card hero" title="Total tracked FAIAD sessions in the current filter"><div class="label">Sessions <span class="help" title="All session rows after applying search and month filters">ⓘ</span></div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
-    </section>
-    <section class="kpi-secondary">
-      <div class="card ok" title="Distinct lab VMs in the current filtered set"><div class="label">VMs <span class="help" title="Unique VM names appearing in the filtered data">ⓘ</span></div><div id="kpiVMs" class="value">0</div></div>
-      <div class="card muted" title="Distinct users who have NOT used the lab past the 9-hour mark"><div class="label">Within limit <span class="help" title="Unique users (by UserName) who never recorded post-9h activity — the inverse of the Post-9h users count">ⓘ</span></div><div id="kpiPre9h" class="value">0</div><div id="kpiPre9hSub" class="pct-sub">within limit</div></div>
-      <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across post-9h sessions">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div></div>
-      <div class="card danger" title="Highest extended (post-9h) active minutes ever recorded in a single session (includes deleted-VM history)"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM (may be deleted)">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
-      <div class="card danger" title="Sessions terminated by the tracker after exceeding the hard 12-hour limit"><div class="label">Hard stopped <span class="help" title="Sessions where ShutdownReason=HardLimitReached — the tracker forced a shutdown">ⓘ</span></div><div id="kpiHardStop" class="value">0</div></div>
+    <div id="errorBox" class="error" role="alert"></div>
+
+    <!-- VM strip -->
+    <section class="panel" aria-labelledby="vmHeading">
+      <div class="toolbar-section-title">
+        <h2 id="vmHeading" title="All VM names known to the tracker. Click any chip to filter the table by that VM.">FAIAD VM names <span class="meta" id="vmStripMeta"></span></h2>
+        <button id="vmToggle" class="vm-toggle" title="Expand or collapse the full VM list">Show all ▾</button>
+      </div>
+      <div id="vmStrip" class="vm-strip collapsed"></div>
     </section>
 
-    <!-- Tabs -->
-    <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="overview" title="High-level ratio and status breakdown">Overview</button>
-      <button class="tab" data-tab="usage" title="How long and how many segments post-9h users accumulate">Usage Distribution</button>
-      <button class="tab" data-tab="vms" title="Total extended minutes per VM (top 25)">Per-VM</button>
-      <button class="tab" data-tab="leaderboard" title="Ranked list of top post-9h users by extended usage">Leaderboard</button>
-    </div>
-
-    <div id="tab-overview" class="tab-content active">
-      <div class="chart-grid">
-        <div class="panel chart-box"><h3>Users who actually used post-9h vs total</h3><canvas id="chartRatio"></canvas></div>
-        <div class="panel chart-box"><h3>User status breakdown</h3><canvas id="chartStatus"></canvas></div>
+    <!-- Sessions table -->
+    <section class="panel" aria-labelledby="sessionsHeading">
+      <div class="toolbar-section-title">
+        <h2 id="sessionsHeading" title="All FAIAD sessions matching the current filters. Click a row to expand its details.">Sessions</h2>
+        <span id="sessionsMeta" class="meta" title="Number of rows shown vs. total tracked sessions">—</span>
       </div>
-    </div>
-
-    <div id="tab-usage" class="tab-content">
-      <div class="chart-grid">
-        <div class="panel chart-box"><h3>Post-9h usage distribution (minutes)</h3><canvas id="chartExtUsage"></canvas></div>
-        <div class="panel chart-box"><h3>Segments per user (post-9h)</h3><canvas id="chartSegments"></canvas></div>
-        <div class="panel chart-box" style="grid-column:1/-1"><h3>Post-9h usage timeline (per session)</h3><canvas id="chartTimeline"></canvas></div>
-      </div>
-    </div>
-
-    <div id="tab-vms" class="tab-content">
-      <div class="chart-grid">
-        <div class="panel chart-box" style="grid-column:1/-1"><h3>Extended usage per VM (top 25)</h3><canvas id="chartPerVM"></canvas></div>
-      </div>
-    </div>
-
-    <div id="tab-leaderboard" class="tab-content">
-      <section class="panel">
-        <h3 style="margin-top:0">Top post-9h users by extended usage</h3>
-        <div style="overflow-x:auto">
-          <table id="topUsersTable" class="top-table">
-            <thead><tr>
-              <th title="Rank by current sort">#</th>
-              <th data-sort="vm" title="Click to sort by VM name">VM</th>
-              <th data-sort="user" title="Click to sort by user name">User</th>
-              <th data-sort="ext" title="Click to sort by extended (post-9h) active minutes">Ext. usage</th>
-              <th data-sort="seg" title="Click to sort by number of post-9h activity segments">Segments</th>
-              <th data-sort="status" title="Click to sort by current status (Active / Idle / Hard stopped / Deleted)">Status</th>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr id="tableHead">
+              <th data-sort="vm" title="Click to sort by VM / user">VM &amp; User</th>
+              <th data-sort="status" title="Click to sort by current status">Status</th>
               <th data-sort="started" title="Click to sort by session start time">Session started</th>
-            </tr></thead>
-            <tbody id="topUsersBody"><tr><td colspan="7" class="empty">No data.</td></tr></tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+              <th data-sort="lastActivity" title="Click to sort by the user's last keyboard / mouse input">Last user input</th>
+              <th data-sort="extUsage" title="Click to sort by extended (post-9h) active minutes">Ext. usage</th>
+              <th data-sort="segments" title="Click to sort by segment count">Segments</th>
+              <th data-sort="heartbeat" title="Click to sort by tracker heartbeat freshness — confirms the tracker script is alive">Tracker heartbeat</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsBody">
+            <!-- skeleton -->
+            <tr class="skeleton-row"><td colspan="7"><div class="skeleton-bar" style="width:80%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="7"><div class="skeleton-bar" style="width:65%"></div></td></tr>
+            <tr class="skeleton-row"><td colspan="7"><div class="skeleton-bar" style="width:90%"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <script>
+    // ---------- Config ----------
     const STORAGE_CONFIG = {
       storageAccountName: "copilots47e37hf4wbpe",
       tableName: "LabSessions",
       accountKey: "2qpCseKmak7lOBmJ2By5x7icjUaR97jIDyp7iWeTYYO3YrBePk13nZ268vejJGlh6XrhRXQ3TuWn+AStFJpL0Q==",
-      refreshSeconds: 15
+      refreshSeconds: 5
     };
-    const FILTER_KEY = "faiadGraphsFilters_v1";
+    const FILTER_KEY = "faiadFilters_v1";
 
+    // ---------- State ----------
     const state = {
       rows: [],
-      filters: { search: "", month: "all" },
+      filtered: [],
+      sort: { col: "lastActivity", dir: "desc" },
+      filters: { search: "", status: "all", month: "all", vm: null },
+      sectionState: { extended: false, pre9h: false, deleted: true },
+      expandedRows: new Set(),
       paused: false,
-      refreshTimer: null,
       lastLoadedAt: null,
-      activeTab: "overview",
-      leaderSort: { col: "ext", dir: "desc" },
+      refreshTimer: null,
+      countdownInterval: null,
+      vmStripExpanded: false,
     };
+
+    // restore filters
     try { Object.assign(state.filters, JSON.parse(localStorage.getItem(FILTER_KEY) || "{}")); } catch {}
 
-    let charts = {};
+    // ---------- DOM helpers ----------
     const $ = id => document.getElementById(id);
     const escHtml = v => String(v).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
-    function showError(msg) { $("errorBox").style.display = msg ? "block" : "none"; $("errorBox").textContent = msg || ""; }
-    function fmtMin(m) { if (!m || m <= 0) return "0m"; const h = Math.floor(m / 60); const mm = Math.round(m % 60); return h > 0 ? `${h}h ${mm}m` : `${mm}m`; }
+
+    function showError(msg) {
+      $("errorBox").style.display = msg ? "block" : "none";
+      $("errorBox").textContent = msg || "";
+    }
+
+    function fmtDate(v) { if (!v) return "-"; const d = new Date(v); return isNaN(d) ? "-" : d.toLocaleString(); }
+    function fmtRelative(ms) {
+      if (!Number.isFinite(ms) || ms < 0) return "-";
+      const m = Math.floor(ms / 60000);
+      if (m < 1) return "<1m";
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return mm > 0 ? `${h}h ${mm}m ago` : `${h}h ago`;
+    }
+    function fmtDuration(ms) {
+      if (!Number.isFinite(ms) || ms < 0) return "-";
+      const m = Math.floor(ms / 60000);
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return h > 0 ? `${h}h ${mm}m` : `${mm}m`;
+    }
     function parseDate(v) { if (!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d; }
 
+    // ---------- Auth (SharedKey for table query) ----------
     function b64ToBytes(b64) { const r = atob(b64.trim()); const a = new Uint8Array(r.length); for (let i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
     function fmtSasTime(d) { return d.toISOString().replace(/\.\d{3}Z$/, "Z"); }
 
@@ -267,11 +467,11 @@
       do {
         const url = new URL(`https://${STORAGE_CONFIG.storageAccountName}.table.core.windows.net/${encodeURIComponent(STORAGE_CONFIG.tableName)}()`);
         new URLSearchParams(sas).forEach((v, k) => url.searchParams.set(k, v));
-        url.searchParams.set("$select", "PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,ExtendedActiveMinutes,ExtendedSegmentCount,IsCurrentlyActive,Status,LastHeartbeatUtc");
+        url.searchParams.set("$select", "PartitionKey,RowKey,SessionId,VMName,UserName,UserStartTime,ExtendedStarted,LastActivityTime,StoppedDueToIdle,ShutdownReason,UpdatedUtc,ExtendedActiveMinutes,ExtendedSegmentCount,ExtendedSegmentsJson,IsCurrentlyActive,CurrentSegmentStartUtc,LastHeartbeatUtc,Status");
         if (cont?.npk) url.searchParams.set("NextPartitionKey", cont.npk);
         if (cont?.nrk) url.searchParams.set("NextRowKey", cont.nrk);
         const r = await fetch(url.toString(), { headers: { Accept: "application/json;odata=nometadata" } });
-        if (!r.ok) throw new Error(`Table query failed: ${r.status} ${await r.text()}`);
+        if (!r.ok) throw new Error(`Table query failed: ${r.status} ${r.statusText}\n${await r.text()}`);
         const b = await r.json();
         out.push(...(b.value || []));
         cont = { npk: r.headers.get("x-ms-continuation-NextPartitionKey"), nrk: r.headers.get("x-ms-continuation-NextRowKey") };
@@ -279,15 +479,36 @@
       return out;
     }
 
+    // ---------- Status classification ----------
+    function statusFor(row) {
+      if (row.Status === "VMDeleted") return { text: "VM Deleted", className: "deleted", group: "deleted" };
+      if (row.Status === "HardStopped" || row.ShutdownReason === "HardLimitReached") return { text: "Hard stop", className: "danger", group: "hardstop" };
+      if (row.Status === "ExtendedActive" || row.IsCurrentlyActive === true) return { text: "Active", className: "warn live", group: "active" };
+      if (row.Status === "ExtendedIdle") return { text: "Idle (post-9h)", className: "neutral", group: "extended" };
+      if (row.Status === "ExtendedMonitoring" || row.ExtendedStarted === true) return { text: "Extended", className: "warn", group: "extended" };
+      if (row.StoppedDueToIdle === true || row.ShutdownReason === "IdleAfterExtendedPeriod") return { text: "Idle stopped", className: "danger", group: "hardstop" };
+      return { text: "Pre-9h", className: "ok", group: "pre9h" };
+    }
+
     // ---------- Month filter helpers ----------
-    function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
-    function monthLabel(key) { const [y, m] = key.split("-"); return new Date(+y, +m - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" }); }
+    function monthKey(date) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+    function monthLabel(key) {
+      const [y, m] = key.split("-");
+      return new Date(+y, +m - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
+    }
     function buildMonthOptions() {
       const sel = $("monthFilter");
       const months = new Set();
-      state.rows.forEach(r => { const d = parseDate(r.UserStartTime); if (d) months.add(monthKey(d)); });
+      state.rows.forEach(r => {
+        const d = parseDate(r.UserStartTime);
+        if (d) months.add(monthKey(d));
+      });
       const sorted = [...months].sort().reverse();
+      // Preserve current selection
       const current = state.filters.month;
+      // remove old dynamic options
       [...sel.options].forEach(o => { if (!["all", "this", "last"].includes(o.value)) sel.removeChild(o); });
       sorted.forEach(key => {
         const o = document.createElement("option");
@@ -310,64 +531,79 @@
       return monthKey(d) === f;
     }
 
+    // ---------- Filtering & sorting ----------
     function applyFilters() {
       const q = (state.filters.search || "").toLowerCase().trim();
-      return state.rows.filter(r => {
+      const sf = state.filters.status;
+      const vmf = state.filters.vm;
+      state.filtered = state.rows.filter(r => {
+        if (vmf && (r.VMName || r.PartitionKey) !== vmf) return false;
         if (!rowMatchesMonth(r)) return false;
         if (q) {
           const blob = `${r.VMName || ""} ${r.PartitionKey || ""} ${r.UserName || ""}`.toLowerCase();
           if (!blob.includes(q)) return false;
         }
+        if (sf && sf !== "all") {
+          const grp = statusFor(r).group;
+          if (sf === "active" && grp !== "active") return false;
+          if (sf === "extended" && grp !== "extended" && grp !== "active") return false;
+          if (sf === "pre9h" && grp !== "pre9h") return false;
+          if (sf === "hardstop" && grp !== "hardstop") return false;
+          if (sf === "deleted" && grp !== "deleted") return false;
+        }
         return true;
+      });
+      sortFiltered();
+    }
+
+    function sortFiltered() {
+      const { col, dir } = state.sort;
+      const mul = dir === "asc" ? 1 : -1;
+      const getKey = {
+        vm: r => (r.VMName || r.PartitionKey || "").toLowerCase(),
+        status: r => statusFor(r).text,
+        started: r => parseDate(r.UserStartTime)?.getTime() || 0,
+        lastActivity: r => parseDate(r.LastActivityTime)?.getTime() || 0,
+        extUsage: r => Number(r.ExtendedActiveMinutes) || 0,
+        segments: r => Number(r.ExtendedSegmentCount) || 0,
+        heartbeat: r => parseDate(r.LastHeartbeatUtc)?.getTime() || 0,
+      }[col] || (r => 0);
+      state.filtered.sort((a, b) => {
+        const av = getKey(a), bv = getKey(b);
+        if (av < bv) return -1 * mul;
+        if (av > bv) return 1 * mul;
+        return 0;
       });
     }
 
-    function destroyCharts() { Object.values(charts).forEach(c => c?.destroy?.()); charts = {}; }
+    // ---------- Render ----------
+    function render() {
+      applyFilters();
+      renderKPIs();
+      renderLiveBar();
+      renderVMStrip();
+      renderTable();
+      renderFilterChips();
+      renderMeta();
+    }
 
-    function renderLiveBar() {
+    function renderKPIs() {
+      const filtered = state.filtered;
       const all = state.rows;
-      const activeNow = all.filter(r => r.Status !== "VMDeleted" && r.IsCurrentlyActive === true).length;
-      const extended = all.filter(r => r.ExtendedStarted === true).length;
-      const vms = new Set(all.map(r => r.VMName || r.PartitionKey).filter(Boolean)).size;
-      $("liveActive").textContent = activeNow;
-      $("liveExt").textContent = extended;
-      $("liveTotal").textContent = all.length;
-      $("liveVMs").textContent = vms;
-      $("liveDot").className = activeNow > 0 ? "dot" : "dot idle";
-      document.title = activeNow > 0 ? `(${activeNow}) FAIAD Analytics` : "FAIAD Analytics";
-    }
-
-    function renderChips() {
-      const chips = [];
-      const f = state.filters;
-      if (f.search) chips.push({ key: "search", label: `Search: "${escHtml(f.search)}"` });
-      if (f.month && f.month !== "all") {
-        const lbl = f.month === "this" ? "This month" : f.month === "last" ? "Last month" : monthLabel(f.month);
-        chips.push({ key: "month", label: `Month: ${lbl}` });
-      }
-      $("filterChips").innerHTML = chips.length
-        ? chips.map(c => `<span class="chip">${c.label}<button data-clear="${c.key}">×</button></span>`).join("") + `<button class="chip" data-clear="all" style="background:#fee2e2;color:#b91c1c;border:0;cursor:pointer">Clear all</button>`
-        : "";
-    }
-
-    function renderAll() {
-      const filtered = applyFilters();
-      const vms = [...new Set(filtered.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
+      const vmNames = [...new Set(all.map(r => r.VMName || r.PartitionKey).filter(Boolean))].sort();
+      const filteredVms = [...new Set(filtered.map(r => r.VMName || r.PartitionKey).filter(Boolean))];
       const deletedRows = filtered.filter(r => r.Status === "VMDeleted");
-      // Historical analytics include deleted-VM sessions — their post-9h minutes are real and we want to count them.
-      // Only "currently active right now" excludes deleted VMs (a removed VM can't have a live user).
+      const activeRows = filtered.filter(r => r.Status !== "VMDeleted");
+      // Historical post-9h stats include deleted-VM sessions — those minutes were real usage.
       const extended = filtered.filter(r => r.ExtendedStarted === true);
-      const extActiveNow = extended.filter(r => r.IsCurrentlyActive === true && r.Status !== "VMDeleted");
-      const hardStopped = filtered.filter(r => r.ShutdownReason === "HardLimitReached");
-      const pre9h = filtered.filter(r => r.ExtendedStarted !== true && r.Status !== "VMDeleted");
-      const extMins = extended.map(r => Number(r.ExtendedActiveMinutes) || 0);
-      const avgExt = extMins.length ? extMins.reduce((a, b) => a + b, 0) / extMins.length : 0;
-      const maxExt = extMins.length ? Math.max(...extMins) : 0;
+      const activeNow = activeRows.filter(r => r.IsCurrentlyActive === true);
+      const extMinutes = extended.map(r => Number(r.ExtendedActiveMinutes) || 0);
+      const avgExt = extMinutes.length ? extMinutes.reduce((a, b) => a + b, 0) / extMinutes.length : 0;
+      const maxExt = extMinutes.length ? Math.max(...extMinutes) : 0;
       const maxRow = extended.find(r => (Number(r.ExtendedActiveMinutes) || 0) === maxExt);
-      const pct = filtered.length ? Math.round(extended.length / filtered.length * 100) : 0;
 
-      // Distinct users — total vs those who actually used the lab past the 9-hour mark
-      // (had real keyboard/mouse activity post-9h, i.e. ExtendedActiveMinutes > 0).
+      // Distinct users who ACTUALLY used the VM past the 9-hour mark
+      // (had real keyboard/mouse activity post-9h, not just passively crossed the threshold).
       const userKey = r => (r.UserName && r.UserName.trim()) || r.VMName || r.PartitionKey || "";
       const allUsers = new Set(filtered.map(userKey).filter(Boolean));
       const extendedUsers = new Set(
@@ -376,161 +612,200 @@
           .map(userKey)
           .filter(Boolean)
       );
-      const nonExtendedUsers = Math.max(0, allUsers.size - extendedUsers.size);
-      const userPct = allUsers.size ? Math.round(extendedUsers.size / allUsers.size * 100) : 0;
 
-      $("kpiActiveNow").textContent = extActiveNow.length;
+      $("kpiActiveNow").textContent = activeNow.length;
       $("kpiExtended").textContent = extendedUsers.size;
       $("kpiExtendedPct").textContent = allUsers.size
-        ? `${userPct}% of ${allUsers.size} users`
+        ? `${extendedUsers.size} of ${allUsers.size} users actually used post-9h`
         : "0 users";
-      $("kpiTotal").textContent = filtered.length;
-      $("kpiTotalSub").textContent = filtered.length === state.rows.length ? "across all VMs" : `of ${state.rows.length} total (filtered)`;
-      $("kpiVMs").textContent = vms.length;
-      $("kpiPre9h").textContent = nonExtendedUsers;
-      const pre9hPct = allUsers.size ? Math.round(nonExtendedUsers / allUsers.size * 100) : 0;
-      $("kpiPre9hSub").textContent = allUsers.size ? `${pre9hPct}% of ${allUsers.size} users` : "within limit";
-      $("kpiAvgExt").textContent = fmtMin(avgExt);
-      $("kpiMaxExt").textContent = fmtMin(maxExt);
-      $("kpiMaxExtUser").textContent = maxRow ? (maxRow.VMName || maxRow.PartitionKey || "—") : "—";
-      $("kpiHardStop").textContent = hardStopped.length;
-
-      destroyCharts();
-
-      // Ratio doughnut with center text — distinct users: actually used post-9h vs not
-      charts.ratio = new Chart($("chartRatio"), {
-        type: "doughnut",
-        data: { labels: [`Used post-9h (${extendedUsers.size})`, `Within limit (${nonExtendedUsers})`], datasets: [{ data: [extendedUsers.size, nonExtendedUsers], backgroundColor: ["#f59e0b", "#10b981"], borderWidth: 3, borderColor: "#fff", hoverOffset: 8 }] },
-        options: { responsive: true, cutout: "60%", plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label(ctx) { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.raw} user${ctx.raw === 1 ? "" : "s"} (${t ? Math.round(ctx.raw / t * 100) : 0}%)`; } } } } },
-        plugins: [{
-          id: "centerText",
-          afterDraw(chart) {
-            const { ctx, width, height } = chart;
-            ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.font = "bold 2.2rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#b54708";
-            ctx.fillText(`${userPct}%`, width / 2, height / 2 - 8);
-            ctx.font = "600 0.85rem 'Segoe UI', system-ui, sans-serif"; ctx.fillStyle = "#667085";
-            ctx.fillText(`${extendedUsers.size}/${allUsers.size} users`, width / 2, height / 2 + 18);
-            ctx.restore();
-          }
-        }]
-      });
-
-      const extIdleCount = extended.filter(r => r.IsCurrentlyActive !== true && r.ShutdownReason !== "HardLimitReached").length;
-      const statusCounts = { "Pre-9h": pre9h.length, "Post-9h Active": extActiveNow.length, "Post-9h Idle": extIdleCount, "Hard Stopped": hardStopped.length, "VM Deleted": deletedRows.length };
-      charts.status = new Chart($("chartStatus"), {
-        type: "doughnut",
-        data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ["#10b981", "#f59e0b", "#94a3b8", "#ef4444", "#d1d5db"], borderWidth: 2, borderColor: "#fff" }] },
-        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
-      });
-
-      const buckets = { "0m": 0, "1-10m": 0, "10-30m": 0, "30m-1h": 0, "1-2h": 0, "2h+": 0 };
-      extMins.forEach(m => {
-        if (m <= 0) buckets["0m"]++;
-        else if (m <= 10) buckets["1-10m"]++;
-        else if (m <= 30) buckets["10-30m"]++;
-        else if (m <= 60) buckets["30m-1h"]++;
-        else if (m <= 120) buckets["1-2h"]++;
-        else buckets["2h+"]++;
-      });
-      charts.extUsage = new Chart($("chartExtUsage"), {
-        type: "bar",
-        data: { labels: Object.keys(buckets), datasets: [{ label: "Users", data: Object.values(buckets), backgroundColor: ["#d1d5db", "#93c5fd", "#60a5fa", "#f59e0b", "#f97316", "#ef4444"], borderRadius: 6 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, title: { display: true, text: "Users" } } } }
-      });
-
-      const segBuckets = { "0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5+": 0 };
-      extended.forEach(r => {
-        const sc = Number(r.ExtendedSegmentCount) || 0;
-        if (sc <= 0) segBuckets["0"]++;
-        else if (sc <= 4) segBuckets[String(sc)]++;
-        else segBuckets["5+"]++;
-      });
-      charts.segments = new Chart($("chartSegments"), {
-        type: "bar",
-        data: { labels: Object.keys(segBuckets), datasets: [{ label: "Users", data: Object.values(segBuckets), backgroundColor: "#0f766e", borderRadius: 6 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-      });
-
-      const vmUsage = {};
-      extended.forEach(r => {
-        const vm = r.VMName || r.PartitionKey || "?";
-        vmUsage[vm] = (vmUsage[vm] || 0) + (Number(r.ExtendedActiveMinutes) || 0);
-      });
-      const sortedVMs = Object.entries(vmUsage).sort((a, b) => b[1] - a[1]).slice(0, 25);
-      charts.perVM = new Chart($("chartPerVM"), {
-        type: "bar",
-        data: { labels: sortedVMs.map(v => v[0]), datasets: [{ label: "Ext. minutes", data: sortedVMs.map(v => Math.round(v[1])), backgroundColor: "#7c3aed", borderRadius: 6 }] },
-        options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-      });
-
-      const tlData = [...extended].sort((a, b) => (Number(b.ExtendedActiveMinutes) || 0) - (Number(a.ExtendedActiveMinutes) || 0));
-      const tlLabels = tlData.map(r => `${r.VMName || r.PartitionKey || "?"} (${r.UserName || "—"})`);
-      const tlValues = tlData.map(r => Number(r.ExtendedActiveMinutes) || 0);
-      charts.timeline = new Chart($("chartTimeline"), {
-        type: "bar",
-        data: { labels: tlLabels, datasets: [{ label: "Ext. minutes", data: tlValues, backgroundColor: tlValues.map(m => m > 120 ? "#ef4444" : m > 60 ? "#f59e0b" : "#10b981"), borderRadius: 6 }] },
-        options: { indexAxis: "y", responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, title: { display: true, text: "Extended minutes" } } } }
-      });
-
-      // Leaderboard
-      renderLeaderboard(extended, maxExt);
+      $("kpiSessions").textContent = filtered.length;
+      $("kpiSessionsSub").textContent = filtered.length === all.length ? "across all VMs" : `of ${all.length} total (filtered)`;
+      $("kpiVMs").textContent = filteredVms.length;
+      $("kpiDeleted").textContent = deletedRows.length;
+      $("kpiDeletedPct").textContent = vmNames.length ? `${Math.round(deletedRows.length / vmNames.length * 100)}% of VMs` : "0%";
+      $("kpiAvgExt").textContent = fmtDuration(avgExt * 60000);
+      $("kpiMaxExt").textContent = fmtDuration(maxExt * 60000);
+      $("kpiMaxExtUser").textContent = maxRow ? (maxRow.VMName || maxRow.PartitionKey || "") : "—";
     }
 
-    function renderLeaderboard(extended, maxExt) {
-      const tbody = $("topUsersBody");
-      const sortKey = state.leaderSort.col;
-      const dir = state.leaderSort.dir === "asc" ? 1 : -1;
-      const get = {
-        vm: r => (r.VMName || r.PartitionKey || "").toLowerCase(),
-        user: r => (r.UserName || "").toLowerCase(),
-        ext: r => Number(r.ExtendedActiveMinutes) || 0,
-        seg: r => Number(r.ExtendedSegmentCount) || 0,
-        status: r => r.IsCurrentlyActive ? 1 : (r.ShutdownReason === "HardLimitReached" ? 3 : 2),
-        started: r => parseDate(r.UserStartTime)?.getTime() || 0,
-      }[sortKey] || (r => 0);
-      const sorted = [...extended].sort((a, b) => {
-        const av = get(a), bv = get(b);
-        return av < bv ? -dir : av > bv ? dir : 0;
-      }).slice(0, 50);
+    function renderLiveBar() {
+      const all = state.rows;
+      const activeNow = all.filter(r => r.Status !== "VMDeleted" && r.IsCurrentlyActive === true).length;
+      const extended = all.filter(r => r.Status !== "VMDeleted" && r.ExtendedStarted === true).length;
+      const vms = new Set(all.map(r => r.VMName || r.PartitionKey).filter(Boolean)).size;
+      $("liveActive").textContent = activeNow;
+      $("liveExt").textContent = extended;
+      $("liveTotal").textContent = all.length;
+      $("liveVMs").textContent = vms;
+      $("liveDot").className = activeNow > 0 ? "dot" : "dot idle";
+      // Update page title
+      document.title = activeNow > 0 ? `(${activeNow}) FAIAD — ${activeNow} active` : `FAIAD Activity Dashboard`;
+    }
 
-      // sort arrows in header
-      document.querySelectorAll("#topUsersTable th[data-sort]").forEach(th => {
-        const isS = th.dataset.sort === sortKey;
-        const arrow = isS ? `<span style="color:var(--accent);margin-left:0.25rem">${state.leaderSort.dir === "asc" ? "▲" : "▼"}</span>` : "";
+    function renderVMStrip() {
+      const all = state.rows;
+      const vmInfo = new Map();
+      all.forEach(r => {
+        const vm = r.VMName || r.PartitionKey;
+        if (!vm) return;
+        const cur = vmInfo.get(vm) || { active: false, extended: false, deleted: false };
+        if (r.Status === "VMDeleted") cur.deleted = true;
+        if (r.IsCurrentlyActive === true) cur.active = true;
+        if (r.ExtendedStarted === true) cur.extended = true;
+        vmInfo.set(vm, cur);
+      });
+      const vmNames = [...vmInfo.keys()].sort((a, b) => {
+        // Priority: active (running) → extended (post-9h) → pre-9h → deleted
+        const rank = vm => {
+          const i = vmInfo.get(vm);
+          if (i.deleted) return 3;
+          if (i.active) return 0;
+          if (i.extended) return 1;
+          return 2;
+        };
+        const ra = rank(a), rb = rank(b);
+        return ra !== rb ? ra - rb : a.localeCompare(b);
+      });
+      $("vmStrip").innerHTML = vmNames.length
+        ? vmNames.map(vm => {
+            const info = vmInfo.get(vm);
+            const cls = ["vm-pill"];
+            if (info.deleted) cls.push("deleted");
+            else if (info.active) cls.push("active");
+            else if (info.extended) cls.push("extended");
+            if (state.filters.vm === vm) cls.push("selected");
+            const title = info.deleted ? "VM deleted from Azure" : (info.active ? "Active right now" : (info.extended ? "Past 9h" : "Pre-9h"));
+            return `<span class="${cls.join(" ")}" data-vm="${escHtml(vm)}" title="${title} — click to filter">${escHtml(vm)}${info.deleted ? " ✝" : ""}</span>`;
+          }).join("")
+        : `<span class="empty">No VM names found.</span>`;
+      $("vmStripMeta").textContent = `(${vmNames.length} total)`;
+      $("vmStrip").classList.toggle("collapsed", !state.vmStripExpanded);
+      $("vmToggle").textContent = state.vmStripExpanded ? "Collapse ▴" : `Show all ▾`;
+    }
+
+    function renderTable() {
+      const tbody = $("sessionsBody");
+      // Update sort arrows in header
+      document.querySelectorAll("#tableHead th").forEach(th => {
+        const isSorted = th.dataset.sort === state.sort.col;
+        const arrow = isSorted ? `<span class="sort-arrow">${state.sort.dir === "asc" ? "▲" : "▼"}</span>` : "";
         const baseTxt = th.dataset.label || th.textContent.replace(/[▲▼]/g, "").trim();
         if (!th.dataset.label) th.dataset.label = baseTxt;
         th.innerHTML = baseTxt + arrow;
       });
 
-      if (!sorted.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No post-9h users yet.</td></tr>`; return; }
-      tbody.innerHTML = sorted.map((r, i) => {
-        const mins = Number(r.ExtendedActiveMinutes) || 0;
-        const segs = Number(r.ExtendedSegmentCount) || 0;
-        const barPct = maxExt > 0 ? Math.round(mins / maxExt * 100) : 0;
-        const barColor = mins > 120 ? "#ef4444" : mins > 60 ? "#f59e0b" : "#10b981";
-        const cls = r.IsCurrentlyActive ? "active" : (r.ShutdownReason === "HardLimitReached" ? "stopped" : (r.Status === "VMDeleted" ? "deleted" : "idle"));
-        const txt = r.IsCurrentlyActive ? "Active" : (r.ShutdownReason === "HardLimitReached" ? "Hard stopped" : (r.Status === "VMDeleted" ? "VM Deleted" : "Idle"));
-        const dot = r.IsCurrentlyActive ? '<span class="b-dot"></span>' : '';
-        const started = r.UserStartTime ? new Date(r.UserStartTime).toLocaleString() : "-";
-        return `<tr>
-          <td>${i + 1}</td>
-          <td><strong>${escHtml(r.VMName || r.PartitionKey || "-")}</strong></td>
-          <td>${escHtml(r.UserName || "-")}</td>
-          <td class="bar-cell"><div class="usage-bar">${fmtMin(mins)}<div class="usage-bar-track"><div class="usage-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div></div></td>
-          <td>${segs}</td>
-          <td><span class="status-badge ${cls}">${dot}${txt}</span></td>
-          <td>${started}</td>
-        </tr>`;
-      }).join("");
+      if (!state.filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">No matching sessions.</td></tr>`;
+        return;
+      }
+
+      // Group: extended (incl active), pre9h, deleted
+      const ext = [], pre = [], del = [];
+      state.filtered.forEach(r => {
+        if (r.Status === "VMDeleted") del.push(r);
+        else if (r.ExtendedStarted === true) ext.push(r);
+        else pre.push(r);
+      });
+
+      const maxExt = Math.max(0, ...state.filtered.map(r => Number(r.ExtendedActiveMinutes) || 0));
+      const ss = state.sectionState;
+
+      function rowHtml(r) {
+        const status = statusFor(r);
+        const userStart = parseDate(r.UserStartTime);
+        const lastActivity = parseDate(r.LastActivityTime);
+        const elapsedMs = userStart ? Date.now() - userStart.getTime() : null;
+        const idleMs = lastActivity ? Date.now() - lastActivity.getTime() : null;
+        const extUsage = Number(r.ExtendedActiveMinutes) || 0;
+        const segCount = Number(r.ExtendedSegmentCount) || 0;
+        const heartbeat = parseDate(r.LastHeartbeatUtc);
+        const hbMs = heartbeat ? Date.now() - heartbeat.getTime() : null;
+        const sessionId = r.SessionId || `${r.PartitionKey}_${r.RowKey}`;
+        const isExpanded = state.expandedRows.has(sessionId);
+        const isLive = status.className.includes("live");
+        const badgeHtml = `<span class="badge ${status.className}">${isLive ? '<span class="b-dot"></span>' : ''}${status.text}</span>`;
+        const usageHtml = extUsage > 0
+          ? `<div class="usage-bar-wrap">${fmtDuration(extUsage * 60000)}<div class="usage-bar"><div class="usage-bar-fill" style="width:${Math.min(100, Math.round(extUsage / Math.max(1, maxExt) * 100))}%;background:${extUsage > 60 ? '#ef4444' : extUsage > 30 ? '#f59e0b' : '#10b981'}"></div></div></div>`
+          : "—";
+
+        const main = `<tr class="session-row" data-session="${escHtml(sessionId)}">
+            <td><strong>${escHtml(r.VMName || r.PartitionKey || "-")}</strong><span class="muted">${escHtml(r.UserName || "—")}</span></td>
+            <td>${badgeHtml}</td>
+            <td>${userStart ? userStart.toLocaleString() : "-"}<span class="muted">${elapsedMs ? fmtDuration(elapsedMs) + " ago" : ""}</span></td>
+            <td>${lastActivity ? lastActivity.toLocaleString() : "-"}<span class="muted">${idleMs != null ? fmtRelative(idleMs) : ""}</span></td>
+            <td>${usageHtml}</td>
+            <td>${segCount > 0 ? segCount : "—"}</td>
+            <td>${hbMs != null ? fmtRelative(hbMs) : "—"}</td>
+          </tr>`;
+
+        if (!isExpanded) return main;
+
+        // Detail row
+        let segs = [];
+        try { segs = JSON.parse(r.ExtendedSegmentsJson || "[]"); } catch {}
+        const segHtml = segs.length
+          ? `<div class="seg-list">${segs.map((s, i) => `<span class="seg-pill">#${i + 1}: ${new Date(s.Start).toLocaleTimeString()} → ${new Date(s.End).toLocaleTimeString()} <strong>(${Math.round(s.Minutes)}m)</strong></span>`).join("")}</div>`
+          : `<span class="muted">No closed segments.</span>`;
+        const detail = `<tr class="detail-row"><td colspan="7">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:0.75rem;font-size:0.85rem">
+            <div><strong>Session ID</strong><br><span class="muted" style="font-family:monospace;font-size:0.78rem">${escHtml(sessionId)}</span></div>
+            <div><strong>Currently active</strong><br>${r.IsCurrentlyActive ? "Yes" : "No"}</div>
+            <div><strong>Current segment start</strong><br>${r.CurrentSegmentStartUtc ? new Date(r.CurrentSegmentStartUtc).toLocaleString() : "—"}</div>
+            <div><strong>Updated</strong><br>${r.UpdatedUtc ? new Date(r.UpdatedUtc).toLocaleString() : "—"}</div>
+            <div><strong>Shutdown reason</strong><br>${escHtml(r.ShutdownReason || "—")}</div>
+          </div>
+          <div style="margin-top:0.75rem"><strong>Closed segments (${segs.length})</strong>${segHtml}</div>
+        </td></tr>`;
+        return main + detail;
+      }
+
+      function sectionHtml(key, label, color, group) {
+        const collapsed = ss[key];
+        const headRow = `<tr class="section-header ${collapsed ? "collapsed" : ""}" data-section="${key}">
+            <td colspan="7" style="border-left:4px solid ${color}">
+              <span class="chevron">▼</span>${label}<span class="section-count">(${group.length})</span>
+            </td>
+          </tr>`;
+        if (collapsed) return headRow;
+        if (!group.length) return headRow + `<tr><td colspan="7" class="empty">None</td></tr>`;
+        return headRow + group.map(rowHtml).join("");
+      }
+
+      tbody.innerHTML =
+        sectionHtml("extended", "Extended Usage (Post-9h)", "#f59e0b", ext) +
+        sectionHtml("pre9h", "Pre-9h Sessions", "#10b981", pre) +
+        sectionHtml("deleted", "Deleted VMs", "#9ca3af", del);
     }
 
+    function renderFilterChips() {
+      const chips = [];
+      const f = state.filters;
+      if (f.search) chips.push({ key: "search", label: `Search: "${escHtml(f.search)}"` });
+      if (f.status && f.status !== "all") chips.push({ key: "status", label: `Status: ${f.status}` });
+      if (f.month && f.month !== "all") {
+        let lbl = f.month === "this" ? "This month" : f.month === "last" ? "Last month" : monthLabel(f.month);
+        chips.push({ key: "month", label: `Month: ${lbl}` });
+      }
+      if (f.vm) chips.push({ key: "vm", label: `VM: ${escHtml(f.vm)}` });
+      $("filterChips").innerHTML = chips.length
+        ? chips.map(c => `<span class="chip">${c.label}<button data-clear="${c.key}" title="Clear">×</button></span>`).join("") + `<button class="chip" data-clear="all" style="cursor:pointer;background:#fee2e2;color:#b91c1c;border:0">Clear all</button>`
+        : "";
+    }
+
+    function renderMeta() {
+      $("sessionsMeta").textContent = `${state.filtered.length} of ${state.rows.length} sessions`;
+      if (state.lastLoadedAt) {
+        $("lastUpdated").textContent = `Updated ${state.lastLoadedAt.toLocaleTimeString()}`;
+      }
+    }
+
+    // ---------- Refresh logic ----------
     let countdownStart = Date.now();
     function tickCountdown() {
       const totalMs = Math.max(5, STORAGE_CONFIG.refreshSeconds) * 1000;
       const elapsed = Date.now() - countdownStart;
       const pct = Math.min(1, elapsed / totalMs);
-      const circ = 2 * Math.PI * 10;
+      const circ = 2 * Math.PI * 10; // 62.83
       $("refreshProgress").setAttribute("stroke-dashoffset", String(circ * pct));
     }
 
@@ -539,13 +814,12 @@
       showError("");
       $("liveStatus").textContent = "Loading…";
       try {
-        state.rows = await fetchRows();
+        const rows = await fetchRows();
+        state.rows = rows;
         state.lastLoadedAt = new Date();
         buildMonthOptions();
-        renderLiveBar();
-        renderChips();
-        renderAll();
-        $("liveStatus").textContent = `Loaded ${state.rows.length} rows · ${state.lastLoadedAt.toLocaleTimeString()}`;
+        render();
+        $("liveStatus").textContent = `Loaded ${rows.length} rows`;
       } catch (e) {
         showError(e.message || String(e));
         $("liveStatus").textContent = "Load failed";
@@ -557,23 +831,43 @@
 
     function scheduleRefresh() {
       if (state.refreshTimer) clearTimeout(state.refreshTimer);
-      const seconds = Math.max(5, Number(STORAGE_CONFIG.refreshSeconds) || 15);
+      const seconds = Math.max(5, Number(STORAGE_CONFIG.refreshSeconds) || 5);
       if (!state.paused) state.refreshTimer = setTimeout(refresh, seconds * 1000);
     }
 
-    function saveFilters() { try { localStorage.setItem(FILTER_KEY, JSON.stringify(state.filters)); } catch {} }
+    // ---------- Filter persistence & wiring ----------
+    function saveFilters() {
+      try { localStorage.setItem(FILTER_KEY, JSON.stringify(state.filters)); } catch {}
+    }
 
     function init() {
+      // Restore filter UI
       $("searchBox").value = state.filters.search || "";
-      $("monthFilter").value = state.filters.month || "all";
+      $("statusFilter").value = state.filters.status || "all";
 
+      // Search
       let sTimer;
       $("searchBox").addEventListener("input", e => {
         clearTimeout(sTimer);
-        sTimer = setTimeout(() => { state.filters.search = e.target.value; saveFilters(); renderChips(); renderAll(); }, 200);
+        sTimer = setTimeout(() => {
+          state.filters.search = e.target.value;
+          saveFilters(); render();
+        }, 180);
       });
-      $("monthFilter").addEventListener("change", e => { state.filters.month = e.target.value; saveFilters(); renderChips(); renderAll(); });
 
+      // Status filter
+      $("statusFilter").addEventListener("change", e => {
+        state.filters.status = e.target.value;
+        saveFilters(); render();
+      });
+
+      // Month filter
+      $("monthFilter").addEventListener("change", e => {
+        state.filters.month = e.target.value;
+        saveFilters(); render();
+      });
+
+      // Pause/refresh
       $("pauseBtn").addEventListener("click", () => {
         state.paused = !state.paused;
         $("pauseBtn").textContent = state.paused ? "▶ Resume" : "⏸ Pause";
@@ -582,38 +876,68 @@
       });
       $("refreshBtn").addEventListener("click", () => refresh(true));
 
+      // VM strip toggle
+      $("vmToggle").addEventListener("click", () => {
+        state.vmStripExpanded = !state.vmStripExpanded;
+        renderVMStrip();
+      });
+
+      // VM pill click → filter
+      $("vmStrip").addEventListener("click", e => {
+        const pill = e.target.closest(".vm-pill");
+        if (!pill) return;
+        const vm = pill.dataset.vm;
+        state.filters.vm = state.filters.vm === vm ? null : vm;
+        saveFilters(); render();
+      });
+
+      // Filter chip clear
       $("filterChips").addEventListener("click", e => {
         const btn = e.target.closest("[data-clear]");
         if (!btn) return;
-        const k = btn.dataset.clear;
-        if (k === "all") { state.filters = { search: "", month: "all" }; $("searchBox").value = ""; $("monthFilter").value = "all"; }
-        else if (k === "search") { state.filters.search = ""; $("searchBox").value = ""; }
-        else if (k === "month") { state.filters.month = "all"; $("monthFilter").value = "all"; }
-        saveFilters(); renderChips(); renderAll();
+        const key = btn.dataset.clear;
+        if (key === "all") {
+          state.filters = { search: "", status: "all", month: "all", vm: null };
+          $("searchBox").value = ""; $("statusFilter").value = "all"; $("monthFilter").value = "all";
+        } else if (key === "vm") state.filters.vm = null;
+        else if (key === "search") { state.filters.search = ""; $("searchBox").value = ""; }
+        else if (key === "status") { state.filters.status = "all"; $("statusFilter").value = "all"; }
+        else if (key === "month") { state.filters.month = "all"; $("monthFilter").value = "all"; }
+        saveFilters(); render();
       });
 
-      // Tabs
-      document.querySelectorAll(".tab").forEach(t => {
-        t.addEventListener("click", () => {
-          state.activeTab = t.dataset.tab;
-          document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
-          document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === `tab-${state.activeTab}`));
-          // Force chart resize when switched in
-          requestAnimationFrame(() => Object.values(charts).forEach(c => c?.resize?.()));
-        });
-      });
-
-      // Leaderboard sort
-      document.querySelectorAll("#topUsersTable th[data-sort]").forEach(th => {
+      // Sort headers
+      document.querySelectorAll("#tableHead th[data-sort]").forEach(th => {
         th.addEventListener("click", () => {
-          const c = th.dataset.sort;
-          if (state.leaderSort.col === c) state.leaderSort.dir = state.leaderSort.dir === "asc" ? "desc" : "asc";
-          else { state.leaderSort.col = c; state.leaderSort.dir = "desc"; }
-          renderAll();
+          const col = th.dataset.sort;
+          if (state.sort.col === col) state.sort.dir = state.sort.dir === "asc" ? "desc" : "asc";
+          else { state.sort.col = col; state.sort.dir = "desc"; }
+          render();
         });
       });
 
-      setInterval(tickCountdown, 250);
+      // Section toggle + row expand
+      $("sessionsBody").addEventListener("click", e => {
+        const hdr = e.target.closest(".section-header");
+        if (hdr) {
+          const k = hdr.dataset.section;
+          state.sectionState[k] = !state.sectionState[k];
+          render();
+          return;
+        }
+        const row = e.target.closest(".session-row");
+        if (row) {
+          const id = row.dataset.session;
+          if (state.expandedRows.has(id)) state.expandedRows.delete(id);
+          else state.expandedRows.add(id);
+          render();
+        }
+      });
+
+      // Initial set selected month value (after first load builds options)
+      // Countdown updater
+      state.countdownInterval = setInterval(tickCountdown, 250);
+
       refresh(true);
     }
 
