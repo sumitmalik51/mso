@@ -159,12 +159,12 @@
     <!-- KPIs -->
     <section class="kpi-hero">
       <div class="card hero live" title="Post-9h users with active keyboard/mouse input right now"><div class="label">Currently active <span class="help" title="Sessions where IsCurrentlyActive=true and ExtendedStarted=true">ⓘ</span></div><div id="kpiActiveNow" class="value">0</div><div class="pct-sub">post-9h users right now</div></div>
-      <div class="card hero highlight" title="All users (including those whose VM was later deleted) who continued past the 9-hour threshold"><div class="label">Post-9h users <span class="help" title="Historical count of sessions that crossed the 9-hour mark — includes deleted-VM sessions so we can see total post-9h usage over time">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0% of total</div></div>
+      <div class="card hero highlight" title="Distinct users who actually had keyboard/mouse activity past the 9-hour threshold (ExtendedActiveMinutes > 0)"><div class="label">Post-9h users <span class="help" title="Unique user count (by UserName) for users who recorded real activity past the 9-hour mark — includes deleted-VM history. Users who only passively crossed 9h with no input are NOT counted.">ⓘ</span></div><div id="kpiExtended" class="value">0</div><div id="kpiExtendedPct" class="pct-sub">0 users</div></div>
       <div class="card hero" title="Total tracked FAIAD sessions in the current filter"><div class="label">Sessions <span class="help" title="All session rows after applying search and month filters">ⓘ</span></div><div id="kpiTotal" class="value">0</div><div id="kpiTotalSub" class="pct-sub">across all VMs</div></div>
     </section>
     <section class="kpi-secondary">
       <div class="card ok" title="Distinct lab VMs in the current filtered set"><div class="label">VMs <span class="help" title="Unique VM names appearing in the filtered data">ⓘ</span></div><div id="kpiVMs" class="value">0</div></div>
-      <div class="card muted" title="Users still within their 9-hour daily limit"><div class="label">Pre-9h only <span class="help" title="Sessions that have NOT yet crossed the 9-hour threshold">ⓘ</span></div><div id="kpiPre9h" class="value">0</div><div class="pct-sub">within limit</div></div>
+      <div class="card muted" title="Distinct users who have NOT used the lab past the 9-hour mark"><div class="label">Within limit <span class="help" title="Unique users (by UserName) who never recorded post-9h activity — the inverse of the Post-9h users count">ⓘ</span></div><div id="kpiPre9h" class="value">0</div><div id="kpiPre9hSub" class="pct-sub">within limit</div></div>
       <div class="card warn" title="Average extended (post-9h) active minutes across post-9h users"><div class="label">Avg ext. usage <span class="help" title="Mean of ExtendedActiveMinutes across post-9h sessions">ⓘ</span></div><div id="kpiAvgExt" class="value">0m</div></div>
       <div class="card danger" title="Highest extended (post-9h) active minutes ever recorded in a single session (includes deleted-VM history)"><div class="label">Max ext. usage <span class="help" title="Single session with the most extended (post-9h) active minutes — sub-text shows the VM (may be deleted)">ⓘ</span></div><div id="kpiMaxExt" class="value">0m</div><div id="kpiMaxExtUser" class="pct-sub">single session</div></div>
       <div class="card danger" title="Sessions terminated by the tracker after exceeding the hard 12-hour limit"><div class="label">Hard stopped <span class="help" title="Sessions where ShutdownReason=HardLimitReached — the tracker forced a shutdown">ⓘ</span></div><div id="kpiHardStop" class="value">0</div></div>
@@ -380,12 +380,16 @@
       const userPct = allUsers.size ? Math.round(extendedUsers.size / allUsers.size * 100) : 0;
 
       $("kpiActiveNow").textContent = extActiveNow.length;
-      $("kpiExtended").textContent = extended.length;
-      $("kpiExtendedPct").textContent = `${pct}% of filtered`;
+      $("kpiExtended").textContent = extendedUsers.size;
+      $("kpiExtendedPct").textContent = allUsers.size
+        ? `${userPct}% of ${allUsers.size} users`
+        : "0 users";
       $("kpiTotal").textContent = filtered.length;
       $("kpiTotalSub").textContent = filtered.length === state.rows.length ? "across all VMs" : `of ${state.rows.length} total (filtered)`;
       $("kpiVMs").textContent = vms.length;
-      $("kpiPre9h").textContent = pre9h.length;
+      $("kpiPre9h").textContent = nonExtendedUsers;
+      const pre9hPct = allUsers.size ? Math.round(nonExtendedUsers / allUsers.size * 100) : 0;
+      $("kpiPre9hSub").textContent = allUsers.size ? `${pre9hPct}% of ${allUsers.size} users` : "within limit";
       $("kpiAvgExt").textContent = fmtMin(avgExt);
       $("kpiMaxExt").textContent = fmtMin(maxExt);
       $("kpiMaxExtUser").textContent = maxRow ? (maxRow.VMName || maxRow.PartitionKey || "—") : "—";
